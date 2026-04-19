@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  backend:
+    build: 
+      context: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=sqlite:///./fairguard.db
+    restart: always
+
+  # We'll use a local mock for now to keep things lean, Redis or Postgres can be added if needed based on plan.

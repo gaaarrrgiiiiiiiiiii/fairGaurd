@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+SQLAlchemy
+asyncpg
+databases
+python-jose[cryptography]
+passlib[bcrypt]
+pandas
+scikit-learn
+dowhy
+dice-ml

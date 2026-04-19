@@ -1,0 +1,105 @@
+# ========================================
+# FairGuard — .gitignore
+# Python (FastAPI) + React (Vite/TS) + Docker
+# ========================================
+
+# ─── Python ─────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# mypy
+.mypy_cache/
+.dmypy.json
+
+# ─── Node / Frontend ────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ─── Build Outputs ──────────────────────
+frontend/dist/
+frontend/build/
+*.tsbuildinfo
+
+# ─── Environment & Secrets ──────────────
+# CRITICAL: Never commit API keys or secrets
+.env
+.env.*
+!.env.example
+backend/.env
+*.pem
+*.key
+
+# ─── Database Files ─────────────────────
+*.db
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# ─── ML Model Artifacts ─────────────────
+*.joblib
+*.pkl
+*.h5
+*.onnx
+*.pt
+*.pth
+
+# ─── Large Data Files ───────────────────
+data/*.csv
+data/*.parquet
+data/*.feather
+!data/prep_adult_data.py
+
+# ─── Docker ─────────────────────────────
+docker-compose.override.yml
+
+# ─── IDE / Editor ───────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ─── OS Artifacts ───────────────────────
+.DS_Store
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# ─── Misc ───────────────────────────────
+*.log
+*.bak
+*.tmp
+*.temp

@@ -1,0 +1,33 @@
+name: FairGuard Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: pip install -r backend/requirements.txt
+        
+      - name: Run PyTest
+        run: pytest tests/
+
+      - name: Build Docker Image
+        run: docker build -t fairguard-backend:latest .
+        
+      # Placeholder for Google Kubernetes Engine or Cloud Run push
+      - name: Deploy to Cloud Run
+        run: |
+          echo "Simulating push to GCP container registry..."
+          echo "Deploying to Cloud Run..."
+          echo "Deployment successful."
