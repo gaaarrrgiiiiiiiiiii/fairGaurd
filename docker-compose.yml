@@ -1,15 +1,47 @@
-version: "3.8"
+version: "3.9"
 
 services:
   backend:
-    build: 
+    build:
       context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
+      - db_data:/app/data
     environment:
       - DATABASE_URL=sqlite:///./fairguard.db
-    restart: always
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+      - JWT_SECRET=${JWT_SECRET:-fairguard-dev-secret-change-in-prod}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
 
-  # We'll use a local mock for now to keep things lean, Redis or Postgres can be added if needed based on plan.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  db_data:
+    driver: local

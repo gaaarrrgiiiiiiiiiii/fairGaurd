@@ -371,20 +371,28 @@ FairGuard is designed from the ground up for **EU AI Act Article 13** compliance
 
 ---
 
-## 🗺️ Roadmap
+## 🌟 Future Scope & Enterprise Enhancements
 
-- [x] Core bias detection pipeline (DP, EO, DI, Causal)
-- [x] Real-time counterfactual correction engine
-- [x] React monitoring dashboard with D3.js causal graphs
-- [x] EU AI Act compliance report generation
-- [x] Python SDK for 5-line integration
-- [x] Docker containerization
-- [ ] Redis-backed decision caching for < 5ms latency
-- [ ] Multi-tenant SaaS deployment with Kubernetes
-- [ ] Webhook integrations (Slack, PagerDuty, Datadog)
-- [ ] Extended protected attribute support (race, disability, religion)
-- [ ] Model-agnostic LLM prompt bias detection
-- [ ] SOC 2 Type II certification
+To transition FairGuard from a highly functional prototype into a globally scalable, production-ready enterprise solution for the **Google Solution Challenge**, the following enhancements are planned:
+
+- **🌐 Multi-Domain & Cross-Industry Expansion**
+  - Moving beyond the current "Lending" model to support dynamic, industry-specific causal graphs for **Hiring** (resume screening bias), **Healthcare** (triage algorithms), and **Insurance** (premium calculations).
+- **⚡ Real-Time WebSocket Telemetry**
+  - Upgrading the API to a fully asynchronous WebSocket architecture (`ws://`) to stream intercepted decisions and bias metrics instantly to compliance officers across the globe.
+- **🔐 Enterprise RBAC & Strict Tenant Isolation**
+  - Implementing fine-grained Role-Based Access Control (Admin, Auditor, API Client) and strict database-level tenant isolation, ensuring zero data leakage in a B2B SaaS environment.
+- **📈 Prometheus & Grafana Observability**
+  - Exposing a `/metrics` endpoint for Prometheus to scrape API latency, error rates, and system-wide bias drift, visualized through custom Grafana dashboards for enterprise DevOps teams.
+- **🧠 Advanced LLM Reasoning & Multilingual Support**
+  - Leveraging Gemini's extended context window to generate EU AI Act compliance reports and counterfactual explanations in over 40 languages, democratizing AI fairness globally.
+
+---
+
+## 🌍 Google Solution Challenge Impact
+
+FairGuard is uniquely positioned for the Google Solution Challenge because it directly addresses **UN Sustainable Development Goal 10 (Reduced Inequalities)** and **SDG 16 (Strong Institutions)**. 
+
+Unlike consumer-facing apps, FairGuard adopts a **B2B Middleware Architecture**. By integrating with just one major financial institution or HR platform, FairGuard can protect millions of individuals simultaneously from algorithmic discrimination. It leverages Google's advanced AI not as a simple chatbot, but as a complex reasoning agent solving a massive, urgent global issue: Algorithmic Bias.
 
 ---
 

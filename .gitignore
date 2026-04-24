@@ -1,105 +1,55 @@
-# ========================================
-# FairGuard — .gitignore
-# Python (FastAPI) + React (Vite/TS) + Docker
-# ========================================
-
-# ─── Python ─────────────────────────────
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-*.egg
+*.pyo
 *.egg-info/
 dist/
 build/
-*.whl
-
-# Virtual environments
+.eggs/
+*.egg
 venv/
-.venv/
 env/
-ENV/
+.venv/
+.env
+!.env.example
 
-# Jupyter
-.ipynb_checkpoints/
-
-# pytest
+# Test artefacts
 .pytest_cache/
 htmlcov/
 .coverage
 coverage.xml
+*.lcov
 
-# mypy
-.mypy_cache/
-.dmypy.json
-
-# ─── Node / Frontend ────────────────────
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# ─── Build Outputs ──────────────────────
-frontend/dist/
-frontend/build/
-*.tsbuildinfo
-
-# ─── Environment & Secrets ──────────────
-# CRITICAL: Never commit API keys or secrets
-.env
-.env.*
-!.env.example
-backend/.env
-*.pem
-*.key
-
-# ─── Database Files ─────────────────────
+# Database
 *.db
 *.sqlite3
-*.db-shm
-*.db-wal
 
-# ─── ML Model Artifacts ─────────────────
-*.joblib
-*.pkl
-*.h5
-*.onnx
-*.pt
-*.pth
+# ML artefacts — source of truth is data/prep_adult_data.py
+data/biased_model.joblib
+data/adult_features.csv
+data/adult_labels.csv
 
-# ─── Large Data Files ───────────────────
-data/*.csv
-data/*.parquet
-data/*.feather
-!data/prep_adult_data.py
+# Cache files generated at runtime
+data/population_metrics_cache.json
+data/causal_effects_cache.json
+data/drift_reference.json
 
-# ─── Docker ─────────────────────────────
-docker-compose.override.yml
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.env
 
-# ─── IDE / Editor ───────────────────────
+# IDEs
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
+*.iml
+
+# OS
 .DS_Store
 Thumbs.db
-desktop.ini
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 
-# ─── OS Artifacts ───────────────────────
-.DS_Store
-ehthumbs.db
-[Dd]esktop.ini
-$RECYCLE.BIN/
+# Docker
+.dockerignore
 
-# ─── Misc ───────────────────────────────
-*.log
-*.bak
-*.tmp
-*.temp
+# Reports generated at runtime
+reports/*.pdf
