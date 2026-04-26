@@ -1,4 +1,3 @@
-import React from 'react';
 
 const CausalGraph = ({ decision }: { decision?: any }) => {
   // Determine if there is bias and which attribute is the cause

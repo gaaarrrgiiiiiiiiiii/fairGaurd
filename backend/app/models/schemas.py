@@ -19,6 +19,8 @@ _ALLOWED_SEX_VALUES = {"Male", "Female", "Non-binary", "Other"}
 _ALLOWED_RACE_VALUES = {
     "White", "Black", "Asian", "Hispanic",
     "American-Indian-Eskimo", "Other", "Unknown",
+    # COMPAS dataset variants
+    "African_American", "African-American", "Caucasian",
 }
 _SAFE_STRING_RE = re.compile(r"^[\w\s\-\.]+$")  # no SQL/injection chars
 
