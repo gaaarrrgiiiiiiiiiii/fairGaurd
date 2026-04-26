@@ -29,8 +29,14 @@ class FairGuardClient:
         return response.json()
 
 # Example Usage:
+# Set FAIRGUARD_API_KEY in your environment before running:
+#   export FAIRGUARD_API_KEY=sk_fgt_<your_key>
 if __name__ == "__main__":
-    client = FairGuardClient(api_key="sk_fgt_12345")
+    import os
+    _api_key = os.environ.get("FAIRGUARD_API_KEY", "")
+    if not _api_key:
+        raise RuntimeError("Set FAIRGUARD_API_KEY environment variable before running the SDK example.")
+    client = FairGuardClient(api_key=_api_key)
     
     # 1. Your ML model makes a decision
     # decision = my_xgboost_model.predict(applicant)

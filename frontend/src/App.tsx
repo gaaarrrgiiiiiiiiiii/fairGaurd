@@ -1,4 +1,13 @@
-import { useState } from 'react';
+/**
+ * App.tsx — FairGuard Dashboard
+ *
+ * Phase 3 wiring:
+ *   • useSSE: real-time decision events (replaces mock DemoSimulator data)
+ *   • useAnalytics: real DB stats (replaces client-side accumulators)
+ *   • SSE connection status indicator in header
+ *   • DemoSimulator still available for manual test submissions
+ */
+import { useCallback, useState } from 'react';
 import DecisionFeed from './components/DecisionFeed';
 import StatsOverview from './components/StatsOverview';
 import BiasMetricsChart from './components/BiasMetricsChart';
@@ -6,69 +15,49 @@ import CausalGraph from './components/CausalGraph';
 import DemoSimulator from './components/DemoSimulator';
 import MetricsGaugePanel from './components/MetricsGaugePanel';
 import { complianceReportUrl } from './services/api';
+import { useSSE } from './hooks/useSSE';
+import { useAnalytics } from './hooks/useAnalytics';
 import type {
   DecisionRecord,
-  StatsData,
   GaugeMetrics,
   ChartDataPoint,
 } from './types';
 
 function App() {
-  const [decisions, setDecisions]     = useState<DecisionRecord[]>([]);
-  const [stats, setStats]             = useState<StatsData>({ total: 0, interventions: 0, complianceRate: 100 });
-  const [latencyAvg, setLatencyAvg]   = useState<number>(214);
-  const [gaugeMetrics, setGaugeMetrics] = useState<GaugeMetrics>({ dpd: 0.18, eod: 0.12, icd: 0.05, cas: 0.06 });
-  const [chartData, setChartData]     = useState<ChartDataPoint[]>([
-    { timestamp: '12:00', icd_score: 0.05, dpd_score: 0.18 },
-    { timestamp: '12:05', icd_score: 0.06, dpd_score: 0.18 },
-    { timestamp: '12:10', icd_score: 0.05, dpd_score: 0.18 },
-  ]);
+  // ── Real-time data ──────────────────────────────────────────────────────
+  const { stats, refresh: refreshStats } = useAnalytics();
 
-  const handleNewDecision = (decision: DecisionRecord & { latency?: number }) => {
-    setDecisions((prev) => [decision, ...prev].slice(0, 50));
+  const [decisions, setDecisions]       = useState<DecisionRecord[]>([]);
+  const [latencyAvg, setLatencyAvg]     = useState<number>(0);
+  const [gaugeMetrics, setGaugeMetrics] = useState<GaugeMetrics>({ dpd: 0, eod: 0, icd: 0, cas: 0 });
+  const [chartData, setChartData]       = useState<ChartDataPoint[]>([]);
 
-    if (decision.latency) {
-      setLatencyAvg((prev) => Math.round((prev * 2 + decision.latency!) / 3));
-    }
+  // Stable callback — useSSE only mounts EventSource once
+  const handleStreamEvent = useCallback(
+    (decision: DecisionRecord, gauge: GaugeMetrics, chartPoint: ChartDataPoint) => {
+      setDecisions((prev) => [decision, ...prev].slice(0, 50));
+      setGaugeMetrics(gauge);
+      setChartData((prev) => [...prev, chartPoint].slice(-10));
+      // Refresh DB stats after each decision (debounced to at most once per 30s by hook)
+      refreshStats();
+    },
+    [refreshStats],
+  );
 
-    setStats((prev) => {
-      const newTotal        = prev.total + 1;
-      const newInterventions = prev.interventions + (decision.bias_detected ? 1 : 0);
-      return {
-        total:          newTotal,
-        interventions:  newInterventions,
-        complianceRate: Math.round(((newTotal - newInterventions) / newTotal) * 1000) / 10,
-      };
-    });
+  // Manual simulator submissions (still useful for live demos)
+  const handleNewDecision = useCallback(
+    (decision: DecisionRecord & { latency?: number }) => {
+      setDecisions((prev) => [decision, ...prev].slice(0, 50));
+      if (decision.latency) {
+        setLatencyAvg((prev) => Math.round((prev * 2 + decision.latency!) / 3));
+      }
+    },
+    [],
+  );
 
-    const now = new Date();
-    const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+  const { connected, error: sseError } = useSSE(handleStreamEvent);
 
-    setChartData((prev) => {
-      const newIcd = decision.bias_detected
-        ? 0.20
-        : Math.random() * 0.08 + 0.02;
-
-      setGaugeMetrics((g) => ({
-        ...g,
-        icd: newIcd,
-        cas: newIcd * 1.25,
-      }));
-
-      const updated = [
-        ...prev,
-        {
-          timestamp: timeStr,
-          icd_score: newIcd,
-          dpd_score: decision.bias_detected
-            ? Math.random() * 0.1 + 0.08
-            : 0.18,
-        },
-      ];
-      return updated.slice(Math.max(0, updated.length - 10));
-    });
-  };
-
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="app-container">
       <header className="app-header">
@@ -77,13 +66,46 @@ function App() {
             FAIR<span className="logo-accent">GUARD</span>
           </h1>
           <p className="logo-subtitle">
-            AI Fairness Firewall — Intercepting Bias in{' '}
-            <span className="logo-accent" style={{ fontFamily: 'var(--font-mono)' }}>
-              {latencyAvg}ms
-            </span>
+            AI Fairness Firewall —{' '}
+            {latencyAvg > 0 ? (
+              <>
+                Intercepting Bias in{' '}
+                <span className="logo-accent" style={{ fontFamily: 'var(--font-mono)' }}>
+                  {latencyAvg}ms
+                </span>
+              </>
+            ) : (
+              'Real-time AI bias detection & correction'
+            )}
           </p>
         </div>
-        <div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {/* SSE connection status indicator */}
+          <span
+            title={sseError ?? (connected ? 'Live stream connected' : 'Connecting…')}
+            style={{
+              display:       'inline-flex',
+              alignItems:    'center',
+              gap:           '0.35rem',
+              fontSize:      '0.75rem',
+              color:         connected ? 'var(--accent-green, #22c55e)' : 'var(--text-muted)',
+              fontFamily:    'var(--font-mono)',
+            }}
+          >
+            <span
+              style={{
+                width:        '8px',
+                height:       '8px',
+                borderRadius: '50%',
+                background:   connected ? '#22c55e' : '#64748b',
+                boxShadow:    connected ? '0 0 6px #22c55e' : 'none',
+                animation:    connected ? 'pulse 2s infinite' : 'none',
+              }}
+            />
+            {connected ? 'LIVE' : 'CONNECTING'}
+          </span>
+
           <button className="pill-button">API Keys</button>
           <button
             className="pill-button"

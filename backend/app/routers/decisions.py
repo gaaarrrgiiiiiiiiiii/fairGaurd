@@ -28,6 +28,7 @@ from app.services.bias_detector import bias_detector
 from app.services.causal_engine import causal_engine
 from app.services.corrector import corrector
 from app.services.threshold_config import get_tenant_thresholds
+from app.routers.stream import publish_event
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -179,7 +180,18 @@ async def evaluate_decision(
             protected_attributes=protected_attrs,
         )
 
-        # Stage 6: [C3] Fire-and-forget LLM explanation — runs after response sent
+        # Stage 6a: [Phase 3] Publish to SSE clients immediately
+        publish_event(tenant_id, {
+            "audit_id":           audit_id,
+            "original_decision":  body.model_output,
+            "corrected_decision": corrected_decision,
+            "bias_detected":      bias_detected,
+            "bias_scores":        bias_scores,
+            "explanation":        explanation,
+            "protected_attributes": protected_attrs,
+        })
+
+        # Stage 6b: [C3] Fire-and-forget LLM explanation — runs after response sent
         if intervention_required:
             background_tasks.add_task(
                 _update_explanation_bg,

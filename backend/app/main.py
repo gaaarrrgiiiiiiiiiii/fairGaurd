@@ -21,7 +21,7 @@ from slowapi.util import get_remote_address
 
 from app.config import settings
 from app.models.database import init_db
-from app.routers import auth, decisions, drift, health, report
+from app.routers import auth, decisions, drift, health, report, stream
 
 logging.basicConfig(
     level=logging.INFO,
@@ -153,4 +153,9 @@ app.include_router(
     drift.router,
     prefix=f"{settings.API_V1_STR}/drift",
     tags=["Drift Monitoring"],
+)
+app.include_router(
+    stream.router,
+    prefix=f"{settings.API_V1_STR}/stream",
+    tags=["Real-time Stream"],
 )
