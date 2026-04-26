@@ -28,6 +28,7 @@ from app.models.database import (
 from app.models.schemas import DecisionRequest, DecisionResponse
 from app.services.bias_detector import bias_detector
 from app.services.causal_engine import causal_engine
+from app.services.domain_registry import list_domains
 from app.services.corrector import corrector
 from app.services.threshold_config import get_tenant_thresholds
 from app.services.webhook_dispatcher import dispatch_event
@@ -421,3 +422,18 @@ async def get_domain_breakdown(
     return await asyncio.get_event_loop().run_in_executor(
         None, get_domain_analytics, ctx.tenant_id
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 4A — Domain registry listing endpoint
+# ---------------------------------------------------------------------------
+
+@router.get("/domains", summary="List all supported bias-detection domains")
+async def list_supported_domains():
+    """
+    Returns the registry of domains FairGuard can evaluate.
+    Includes protected attributes, decision vocabulary, and description.
+
+    No auth required — public discovery endpoint.
+    """
+    return list_domains()

@@ -26,6 +26,14 @@ from app.routers import settings as settings_router
 from app.routers import audit as audit_router
 from app.routers import webhooks as webhooks_router
 
+# Phase 4C — Prometheus metrics (optional; skips if package absent)
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator as _Instrumentator
+    _PROMETHEUS_ENABLED = True
+except ImportError:
+    _PROMETHEUS_ENABLED = False
+    logger = logging.getLogger(__name__)  # pre-init for the warning below
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-8s | %(name)s — %(message)s",
@@ -101,6 +109,12 @@ app = FastAPI(
 # Attach rate limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Phase 4C — Expose /metrics for Prometheus scraping
+if _PROMETHEUS_ENABLED:
+    _Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+else:
+    logger.warning("prometheus-fastapi-instrumentator not installed; /metrics unavailable.")
 
 
 # ---------------------------------------------------------------------------
