@@ -1,53 +1,52 @@
 """
-Report router — GET /v1/report/generate
+Report router — Gap 8 Rich Reporting
 
-H1: Auth enforced. Tenant ID is derived from the Bearer token, not from a
-query parameter. An unauthenticated caller cannot access another tenant's data.
+Endpoints:
+  GET /v1/report/generate     — Download EU AI Act PDF report (auditor+)
+  GET /v1/report/analytics    — JSON analytics summary with domain breakdown (auditor+)
 """
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Security, status
+from fastapi import APIRouter, Depends
 from fastapi.responses import Response
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth.jwt_handler import verify_token, DEV_MODE
+from app.auth.rbac import TenantContext, auditor_or_admin
+from app.models.database import get_tenant_analytics, get_domain_analytics
 from app.services.compliance_report import generate_pdf_report
 
 router = APIRouter()
-security = HTTPBearer(auto_error=False)
 
 
-def _get_tenant(
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(security),
-) -> str:
-    """Return tenant_id from a valid token, or raise 401."""
-    raw_token = credentials.credentials if credentials else None
-    tenant_id = verify_token(raw_token)
-    if tenant_id is None:
-        if DEV_MODE:
-            return "tenant_local_dev"
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return tenant_id
-
-
-@router.get("/generate")
-async def get_compliance_report(tenant_id: str = Depends(_get_tenant)):
+@router.get("/generate", summary="Download EU AI Act compliance report (PDF)")
+async def get_compliance_report(ctx: TenantContext = Depends(auditor_or_admin)):
     """
-    Generate and download an EU AI Act Article 13 compliance report PDF.
-
-    Requires valid Bearer token. Tenant is inferred from the token.
+    Generate and stream a rich EU AI Act Article 13/17 compliance PDF.
+    Includes executive summary, per-domain breakdown, bias trend, and
+    hash-chain integrity status.
     """
-    pdf_bytes = generate_pdf_report(tenant_id)
+    pdf_bytes = generate_pdf_report(ctx.tenant_id)
+    content_type = (
+        "application/pdf"
+        if pdf_bytes[:4] == b"%PDF"
+        else "text/plain; charset=utf-8"
+    )
+    filename = f"fairguard_compliance_{ctx.tenant_id}.pdf"
     return Response(
         content=pdf_bytes,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": (
-                f'attachment; filename="fairguard_eu_aia_report_{tenant_id}.pdf"'
-            )
-        },
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/analytics", summary="JSON compliance analytics with domain breakdown")
+async def get_analytics(ctx: TenantContext = Depends(auditor_or_admin)):
+    """
+    Return structured JSON analytics:
+      - overall: total decisions, interventions, compliance rate
+      - domains: per-domain breakdown (Gap 2)
+    """
+    overall = get_tenant_analytics(ctx.tenant_id)
+    domains = get_domain_analytics(ctx.tenant_id)
+    return {
+        "tenant_id": ctx.tenant_id,
+        "overall": overall,
+        "domains": domains,
+    }

@@ -21,8 +21,10 @@ from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.auth.rbac import TenantContext, any_authenticated
-from app.models.database import create_audit_log_async, update_audit_explanation_async
+from app.auth.rbac import TenantContext, any_authenticated, auditor_or_admin
+from app.models.database import (
+    create_audit_log_async, update_audit_explanation_async, get_domain_analytics
+)
 from app.models.schemas import DecisionRequest, DecisionResponse
 from app.services.bias_detector import bias_detector
 from app.services.causal_engine import causal_engine
@@ -86,6 +88,7 @@ async def evaluate_decision(
             bias_scores={},
             explanation="Passed through — no protected attributes provided.",
             protected_attributes=[],
+            domain=body.domain,
         )
         return DecisionResponse(
             original_decision=body.model_output,
@@ -93,6 +96,7 @@ async def evaluate_decision(
             bias_detected=False,
             explanation="Passed through. No protected attributes evaluated.",
             audit_id=audit_id,
+            domain=body.domain,
         )
 
     # --- Main pipeline ---
@@ -159,6 +163,7 @@ async def evaluate_decision(
             bias_scores=bias_scores,
             explanation=explanation,
             protected_attributes=protected_attrs,
+            domain=body.domain,
         )
 
         # Stage 6a: [Phase 3] Publish to SSE clients immediately
@@ -211,6 +216,7 @@ async def evaluate_decision(
             bias_detected=bias_detected,
             explanation=explanation,
             audit_id=audit_id,
+            domain=body.domain,
         )
 
     except Exception as exc:
@@ -225,6 +231,7 @@ async def evaluate_decision(
                 bias_scores={},
                 explanation=f"SYSTEM_ERROR: Pipeline degraded gracefully. {exc}",
                 protected_attributes=protected_attrs,
+                domain=body.domain,
             )
         except Exception:
             audit_id = None
@@ -275,6 +282,7 @@ async def _run_single(
             bias_scores={},
             explanation="Passed through — no protected attributes provided.",
             protected_attributes=[],
+            domain=item.domain,
         )
         return DecisionResponse(
             original_decision=item.model_output,
@@ -282,6 +290,7 @@ async def _run_single(
             bias_detected=False,
             explanation="Passed through. No protected attributes evaluated.",
             audit_id=audit_id,
+            domain=item.domain,
         )
 
     try:
@@ -329,6 +338,7 @@ async def _run_single(
             bias_scores=bias_scores,
             explanation=explanation,
             protected_attributes=protected_attrs,
+            domain=item.domain,
         )
         publish_event(tenant_id, {
             "audit_id": audit_id, "original_decision": item.model_output,
@@ -348,6 +358,7 @@ async def _run_single(
             bias_detected=bias_detected,
             explanation=explanation,
             audit_id=audit_id,
+            domain=item.domain,
         )
     except Exception as exc:
         logger.error("Batch item pipeline failure: %s", exc)
@@ -388,4 +399,25 @@ async def evaluate_batch(
             1 for r in results
             if r.explanation and "DETECT-ONLY" in (r.explanation or "")
         ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Gap 2 — Multi-domain analytics endpoint
+# ---------------------------------------------------------------------------
+
+@router.get("/decisions/domains", summary="Per-domain bias analytics")
+async def get_domain_breakdown(
+    ctx: TenantContext = Depends(auditor_or_admin),
+):
+    """
+    Return per-domain breakdown of decisions, interventions, and compliance rate.
+    Requires auditor or admin role.
+
+    Example response:
+      [{"domain": "credit", "total_decisions": 120, "interventions": 8, "compliance_rate": 93.33},
+       {"domain": "hiring", "total_decisions": 55,  "interventions": 2, "compliance_rate": 96.36}]
+    """
+    return await asyncio.get_event_loop().run_in_executor(
+        None, get_domain_analytics, ctx.tenant_id
     )

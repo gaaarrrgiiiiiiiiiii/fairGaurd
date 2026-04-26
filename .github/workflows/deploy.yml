@@ -22,7 +22,7 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Run PyTest
-        working-directory: backend
+        # Run from repo root — pytest.ini lives here and points to tests/
         env:
           DATABASE_URL: "sqlite:////tmp/test_fairguard.db"
           FAIRGUARD_DATA_DIR: "/tmp"
@@ -30,7 +30,7 @@ jobs:
           FAIRGUARD_DEV_MODE: "true"
           FAIRGUARD_API_KEYS: "{}"
           ALLOWED_ORIGINS: "http://localhost:5173"
-        run: pytest tests/ -x -q
+        run: pytest -x -q
 
       - name: Build Docker Image
         # Dockerfile lives in backend/ — build context must be ./backend

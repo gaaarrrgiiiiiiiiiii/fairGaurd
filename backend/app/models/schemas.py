@@ -54,6 +54,24 @@ class DecisionRequest(BaseModel):
         description="Attribute names to evaluate for bias (max 5).",
         examples=[["sex", "age"]],
     )
+    domain: Optional[str] = Field(
+        default=None,
+        max_length=64,
+        description="Application domain tag (e.g. 'credit', 'hiring', 'healthcare').",
+        examples=["credit"],
+    )
+
+    @field_validator("domain")
+    @classmethod
+    def validate_domain(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip().lower()
+        if not re.match(r'^[a-z0-9][a-z0-9_\-]{0,62}$', v):
+            raise ValueError(
+                "domain must be lowercase alphanumeric/hyphen/underscore, max 64 chars."
+            )
+        return v
 
     # ── model_output validation ──────────────────────────────────────────
     @field_validator("model_output")
@@ -173,6 +191,7 @@ class DecisionResponse(BaseModel):
     bias_detected: bool
     explanation: Optional[str] = None
     audit_id: Optional[str] = None
+    domain: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

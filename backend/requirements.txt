@@ -40,3 +40,10 @@ locust>=2.28.0
 
 # Utilities
 python-multipart>=0.0.9
+
+# Gap 9 — Redis Pub/Sub SSE backend (optional; in-process fallback if absent)
+aioredis>=2.0.0
+
+# Testing extras
+pytest-asyncio>=0.23.0
+anyio>=4.0.0

@@ -23,6 +23,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    Integer,
     String,
     Text,
     create_engine,
@@ -79,6 +80,7 @@ class AuditLog(Base):
 
     id                  = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id           = Column(String, nullable=False, index=True)
+    domain              = Column(String, nullable=True, index=True)  # Gap 2: multi-domain
     timestamp           = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     original_decision   = Column(Text, nullable=False)
     corrected_decision  = Column(Text, nullable=False)
@@ -145,6 +147,7 @@ def create_audit_log(
     bias_scores: Dict[str, float],
     explanation: str,
     protected_attributes: List[str],
+    domain: Optional[str] = None,
 ) -> str:
     """
     Persist a decision audit record.
@@ -173,6 +176,7 @@ def create_audit_log(
         # Build canonical content string and hash it
         content = json.dumps({
             "id": audit_id, "tenant_id": tenant_id,
+            "domain": domain,
             "original_decision": original_decision,
             "corrected_decision": corrected_decision,
             "bias_scores": bias_scores,
@@ -184,6 +188,7 @@ def create_audit_log(
         record = AuditLog(
             id                   = audit_id,
             tenant_id            = tenant_id,
+            domain               = domain,
             timestamp            = datetime.datetime.utcnow(),
             original_decision    = json.dumps(original_decision),
             corrected_decision   = json.dumps(corrected_decision),
@@ -240,36 +245,137 @@ def get_tenant_analytics(tenant_id: str) -> Dict[str, Any]:
     }
 
 
-def get_recent_audit_logs(
-    tenant_id: str,
-    limit: int = 50,
-) -> List[Dict[str, Any]]:
-    """Return the most recent audit log entries for a tenant (newest first)."""
+def get_domain_analytics(tenant_id: str) -> List[Dict[str, Any]]:
+    """
+    Gap 2 — Multi-domain analytics.
+    Returns per-domain breakdown of decisions, interventions, and compliance rate.
+    Domain NULL rows are grouped under 'untagged'.
+    """
     db = SessionLocal()
     try:
         rows = (
-            db.query(AuditLog)
+            db.query(
+                func.coalesce(AuditLog.domain, "untagged").label("domain"),
+                func.count(AuditLog.id).label("total"),
+                func.sum(
+                    func.cast(AuditLog.correction_applied, Integer)
+                ).label("interventions"),
+            )
             .filter(AuditLog.tenant_id == tenant_id)
-            .order_by(AuditLog.timestamp.desc())
-            .limit(limit)
+            .group_by(func.coalesce(AuditLog.domain, "untagged"))
             .all()
         )
+    finally:
+        db.close()
+
+    result = []
+    for row in rows:
+        total = row.total or 0
+        ivns  = int(row.interventions or 0)
+        rate  = 100.0 if total == 0 else round(100.0 * (total - ivns) / total, 2)
+        result.append({
+            "domain": row.domain,
+            "total_decisions": total,
+            "interventions": ivns,
+            "compliance_rate": rate,
+        })
+    return result
+
+
+def get_recent_audit_logs(
+    tenant_id: str,
+    limit: int = 50,
+    domain: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Return the most recent audit log entries for a tenant (newest first).
+    Optionally filter by domain (Gap 2).
+    """
+    db = SessionLocal()
+    try:
+        q = (
+            db.query(AuditLog)
+            .filter(AuditLog.tenant_id == tenant_id)
+        )
+        if domain:
+            q = q.filter(AuditLog.domain == domain)
+        rows = q.order_by(AuditLog.timestamp.desc()).limit(limit).all()
+
         return [
             {
                 "id":                  r.id,
-                "tenant_id":           r.tenant_id,
-                "timestamp":           r.timestamp.isoformat(),
-                "original_decision":   json.loads(r.original_decision),
-                "corrected_decision":  json.loads(r.corrected_decision),
-                "bias_scores":         json.loads(r.bias_scores or "{}"),
-                "explanation":         r.explanation,
-                "protected_attributes":json.loads(r.protected_attributes or "[]"),
-                "correction_applied":  r.correction_applied,
+                "tenant_id":          r.tenant_id,
+                "domain":             r.domain,
+                "timestamp":          r.timestamp.isoformat(),
+                "original_decision":  json.loads(r.original_decision),
+                "corrected_decision": json.loads(r.corrected_decision),
+                "bias_scores":        json.loads(r.bias_scores or "{}"),
+                "explanation":        r.explanation,
+                "protected_attributes": json.loads(r.protected_attributes or "[]"),
+                "correction_applied": r.correction_applied,
             }
             for r in rows
         ]
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Gap 8 — Audit chain integrity verifier (EU AI Act Art. 12)
+# ---------------------------------------------------------------------------
+
+def verify_audit_chain(tenant_id: str) -> Dict[str, Any]:
+    """
+    Walk all audit records in chronological order and verify the hash chain.
+
+    Returns:
+        {
+          "valid": bool,
+          "records_checked": int,
+          "first_invalid_id": str | None,   # first broken record, if any
+        }
+    """
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(AuditLog)
+            .filter(AuditLog.tenant_id == tenant_id)
+            .order_by(AuditLog.timestamp.asc())
+            .all()
+        )
+    finally:
+        db.close()
+
+    if not rows:
+        return {"valid": True, "records_checked": 0, "first_invalid_id": None}
+
+    prev_hash = "0" * 64
+    for i, row in enumerate(rows):
+        if not row.record_hash:
+            # Legacy record without a hash — skip (don't fail)
+            prev_hash = row.record_hash or "0" * 64
+            continue
+
+        # Recompute expected hash
+        content = json.dumps({
+            "id": row.id, "tenant_id": row.tenant_id,
+            "domain": row.domain,
+            "original_decision": json.loads(row.original_decision),
+            "corrected_decision": json.loads(row.corrected_decision),
+            "bias_scores": json.loads(row.bias_scores or "{}"),
+            "protected_attributes": json.loads(row.protected_attributes or "[]"),
+            "correction_applied": row.correction_applied,
+        }, sort_keys=True)
+        expected = _hashlib.sha256((prev_hash + content).encode()).hexdigest()
+
+        if expected != row.record_hash:
+            return {
+                "valid": False,
+                "records_checked": i + 1,
+                "first_invalid_id": row.id,
+            }
+        prev_hash = row.record_hash
+
+    return {"valid": True, "records_checked": len(rows), "first_invalid_id": None}
 
 
 # ---------------------------------------------------------------------------
@@ -308,15 +414,17 @@ async def create_audit_log_async(
     bias_scores: Dict[str, float],
     explanation: str,
     protected_attributes: List[str],
+    domain: Optional[str] = None,
 ) -> str:
     """Async wrapper — runs create_audit_log in a thread-pool executor."""
+    import functools
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        None,
+    fn = functools.partial(
         create_audit_log,
         tenant_id, original_decision, corrected_decision,
-        bias_scores, explanation, protected_attributes,
+        bias_scores, explanation, protected_attributes, domain,
     )
+    return await loop.run_in_executor(None, fn)
 
 
 async def update_audit_explanation_async(audit_id: str, explanation: str) -> None:
