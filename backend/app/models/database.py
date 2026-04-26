@@ -22,6 +22,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     String,
     Text,
     create_engine,
@@ -82,11 +83,29 @@ class AuditLog(Base):
     explanation         = Column(Text, nullable=True)
     protected_attributes= Column(Text, nullable=True)
     correction_applied  = Column(Boolean, default=False, nullable=False)
+    # Phase 1C — immutable hash chain (EU AI Act Art. 12)
+    prev_hash           = Column(String(64), nullable=True)
+    record_hash         = Column(String(64), nullable=True)
+
+
+class TenantThreshold(Base):
+    """Per-tenant configurable thresholds + operation mode (Phase 1A/1B)."""
+    __tablename__ = "tenant_thresholds"
+
+    tenant_id           = Column(String, primary_key=True)
+    dpd_threshold       = Column(Float, default=0.10, nullable=False)
+    eod_threshold       = Column(Float, default=0.08, nullable=False)
+    icd_threshold       = Column(Float, default=0.15, nullable=False)
+    cas_threshold       = Column(Float, default=0.20, nullable=False)
+    mode                = Column(String, default="detect_and_correct", nullable=False)
+    updated_at          = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+import hashlib as _hashlib
 
 def init_db() -> None:
     """Create all tables if they don't exist."""
@@ -120,25 +139,45 @@ def create_audit_log(
     """
     audit_id = str(uuid.uuid4())
 
-    # Determine whether a real correction was applied
     orig_dec  = original_decision.get("decision",  "")
     corr_dec  = corrected_decision.get("decision", "")
     correction_applied = (orig_dec != corr_dec)
 
-    record = AuditLog(
-        id                   = audit_id,
-        tenant_id            = tenant_id,
-        timestamp            = datetime.datetime.utcnow(),
-        original_decision    = json.dumps(original_decision),
-        corrected_decision   = json.dumps(corrected_decision),
-        bias_scores          = json.dumps(bias_scores),
-        explanation          = explanation,
-        protected_attributes = json.dumps(protected_attributes),
-        correction_applied   = correction_applied,
-    )
-
     db = SessionLocal()
     try:
+        # Phase 1C — fetch previous hash for chain integrity
+        last = (
+            db.query(AuditLog)
+            .filter(AuditLog.tenant_id == tenant_id)
+            .order_by(AuditLog.timestamp.desc())
+            .first()
+        )
+        prev_hash = last.record_hash if last and last.record_hash else "0" * 64
+
+        # Build canonical content string and hash it
+        content = json.dumps({
+            "id": audit_id, "tenant_id": tenant_id,
+            "original_decision": original_decision,
+            "corrected_decision": corrected_decision,
+            "bias_scores": bias_scores,
+            "protected_attributes": protected_attributes,
+            "correction_applied": correction_applied,
+        }, sort_keys=True)
+        record_hash = _hashlib.sha256((prev_hash + content).encode()).hexdigest()
+
+        record = AuditLog(
+            id                   = audit_id,
+            tenant_id            = tenant_id,
+            timestamp            = datetime.datetime.utcnow(),
+            original_decision    = json.dumps(original_decision),
+            corrected_decision   = json.dumps(corrected_decision),
+            bias_scores          = json.dumps(bias_scores),
+            explanation          = explanation,
+            protected_attributes = json.dumps(protected_attributes),
+            correction_applied   = correction_applied,
+            prev_hash            = prev_hash,
+            record_hash          = record_hash,
+        )
         db.add(record)
         db.commit()
         logger.debug("Audit log created: %s (correction=%s)", audit_id, correction_applied)
@@ -268,3 +307,98 @@ async def update_audit_explanation_async(audit_id: str, explanation: str) -> Non
     """Async wrapper — runs update_audit_explanation in a thread-pool executor."""
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, update_audit_explanation, audit_id, explanation)
+
+
+# ---------------------------------------------------------------------------
+# Phase 1A/1B — Tenant threshold CRUD
+# ---------------------------------------------------------------------------
+
+def get_tenant_threshold_row(tenant_id: str) -> Optional["TenantThreshold"]:
+    """Return the DB row or None if no custom config exists."""
+    db = SessionLocal()
+    try:
+        return db.query(TenantThreshold).filter(TenantThreshold.tenant_id == tenant_id).first()
+    finally:
+        db.close()
+
+
+def upsert_tenant_thresholds(
+    tenant_id: str,
+    dpd: float,
+    eod: float,
+    icd: float,
+    cas: float,
+    mode: str,
+) -> None:
+    """Insert or update threshold config for a tenant."""
+    db = SessionLocal()
+    try:
+        row = db.query(TenantThreshold).filter(TenantThreshold.tenant_id == tenant_id).first()
+        if row:
+            row.dpd_threshold = dpd
+            row.eod_threshold = eod
+            row.icd_threshold = icd
+            row.cas_threshold = cas
+            row.mode = mode
+            row.updated_at = datetime.datetime.utcnow()
+        else:
+            row = TenantThreshold(
+                tenant_id=tenant_id, dpd_threshold=dpd,
+                eod_threshold=eod, icd_threshold=icd,
+                cas_threshold=cas, mode=mode,
+            )
+            db.add(row)
+        db.commit()
+        logger.debug("Thresholds upserted for tenant %s", tenant_id)
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to upsert thresholds: %s", exc)
+        raise
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Phase 1C — Audit chain verification
+# ---------------------------------------------------------------------------
+
+def verify_audit_chain(tenant_id: str) -> Dict[str, Any]:
+    """Walk the hash chain; return integrity status."""
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(AuditLog)
+            .filter(AuditLog.tenant_id == tenant_id)
+            .order_by(AuditLog.timestamp.asc())
+            .all()
+        )
+    finally:
+        db.close()
+
+    if not rows:
+        return {"valid": True, "records_checked": 0, "first_violation": None}
+
+    prev = "0" * 64
+    for i, row in enumerate(rows):
+        if row.record_hash is None:
+            # Legacy record before Phase 1C — skip
+            prev = row.record_hash or prev
+            continue
+        content = json.dumps({
+            "id": row.id, "tenant_id": row.tenant_id,
+            "original_decision": json.loads(row.original_decision),
+            "corrected_decision": json.loads(row.corrected_decision),
+            "bias_scores": json.loads(row.bias_scores or "{}"),
+            "protected_attributes": json.loads(row.protected_attributes or "[]"),
+            "correction_applied": row.correction_applied,
+        }, sort_keys=True)
+        expected = _hashlib.sha256((prev + content).encode()).hexdigest()
+        if expected != row.record_hash:
+            return {
+                "valid": False,
+                "records_checked": i + 1,
+                "first_violation": row.id,
+            }
+        prev = row.record_hash
+
+    return {"valid": True, "records_checked": len(rows), "first_violation": None}

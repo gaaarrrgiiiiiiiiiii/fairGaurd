@@ -2,13 +2,13 @@
 Decisions router — POST /v1/decision
 
 Phase 2 pipeline:
-  1. Auth (H1 — from Phase 1)
+  1. Auth (H1)
   2. Fast-path if no protected attrs
-  3. [H2] CPU-bound bias + causal run in thread-pool executor (truly parallel)
+  3. [H2] CPU-bound bias + causal in thread-pool (parallel)
   4. Threshold evaluation
-  5. [C3] apply_correction_fast() — counterfactual only, no LLM, <1ms
-  6. [H2] Audit log persisted async (non-blocking)
-  7. [C3] LLM explanation fired as BackgroundTask — runs AFTER HTTP response sent
+  5. [C3/1B] apply_correction_fast() — skipped in detect_only mode
+  6. [H2] Audit log persisted async
+  7. [C3] LLM explanation as BackgroundTask (only if correction applied)
   8. Graceful degradation on any failure
 """
 import asyncio
@@ -156,8 +156,15 @@ async def evaluate_decision(
         explanation        = "No statistically significant bias detected."
         corrected_decision = body.model_output
 
-        # Stage 4: [C3] Fast correction — no LLM on hot path
-        if intervention_required:
+        # Stage 4: [C3/1B] Fast correction — skipped in detect_only mode
+        detect_only = thresholds.mode == "detect_only"
+
+        if detect_only and (bias_detected or intervention_required):
+            explanation = (
+                "[DETECT-ONLY MODE] Bias detected but no correction applied per tenant policy. "
+                f"DPD={dpd:.3f} EOD={eod:.3f} ICD={icd:.3f} CAS={cas:.3f}"
+            )
+        elif intervention_required:
             corrected_decision, explanation = corrector.apply_correction_fast(
                 features=body.applicant_features,
                 model_output=body.model_output,
@@ -191,8 +198,8 @@ async def evaluate_decision(
             "protected_attributes": protected_attrs,
         })
 
-        # Stage 6b: [C3] Fire-and-forget LLM explanation — runs after response sent
-        if intervention_required:
+        # Stage 6b: [C3] Fire-and-forget LLM explanation — only when correction was actually made
+        if intervention_required and not detect_only:
             background_tasks.add_task(
                 _update_explanation_bg,
                 audit_id=audit_id,

@@ -107,6 +107,17 @@ jobs:
             -e FAIRGUARD_DEV_MODE=true \
             -e FAIRGUARD_API_KEYS='{}' \
             --name fg-smoke fairguard-backend
-          sleep 15
-          curl -f http://localhost:8000/health
+          echo "Waiting for server to be ready..."
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8000/health; then
+              echo "Server is up after ${i}x5s"
+              break
+            fi
+            if [ $i -eq 15 ]; then
+              echo "Server did not start in time"
+              docker logs fg-smoke
+              exit 1
+            fi
+            sleep 5
+          done
           docker stop fg-smoke

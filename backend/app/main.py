@@ -22,6 +22,8 @@ from slowapi.util import get_remote_address
 from app.config import settings
 from app.models.database import init_db
 from app.routers import auth, decisions, drift, health, report, stream
+from app.routers import settings as settings_router
+from app.routers import audit as audit_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -113,7 +115,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
@@ -158,4 +160,14 @@ app.include_router(
     stream.router,
     prefix=f"{settings.API_V1_STR}/stream",
     tags=["Real-time Stream"],
+)
+app.include_router(
+    settings_router.router,
+    prefix=f"{settings.API_V1_STR}/settings",
+    tags=["Settings"],
+)
+app.include_router(
+    audit_router.router,
+    prefix=f"{settings.API_V1_STR}/audit",
+    tags=["Audit"],
 )
