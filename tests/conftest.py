@@ -17,8 +17,11 @@ if BACKEND_DIR not in sys.path:
 # Override database to a temp in-memory SQLite for tests
 # ---------------------------------------------------------------------------
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test_fairguard.db")
-os.environ.setdefault("JWT_SECRET", "test-secret")
+os.environ.setdefault("JWT_SECRET", "test-secret-at-least-32-characters-long")
 os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:5173")
+# Enable dev-mode so tests don't need real JWT tokens
+os.environ.setdefault("FAIRGUARD_DEV_MODE", "true")
+os.environ.setdefault("FAIRGUARD_API_KEYS", "{}")
 
 
 # ---------------------------------------------------------------------------

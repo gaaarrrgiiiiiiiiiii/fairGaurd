@@ -49,7 +49,9 @@ frontend/.env
 Thumbs.db
 
 # Docker
-.dockerignore
+# (do not ignore .dockerignore — it should be committed)
+!backend/.dockerignore
+!frontend/.dockerignore
 
 # Reports generated at runtime
 reports/*.pdf

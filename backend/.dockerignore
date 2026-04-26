@@ -1,0 +1,43 @@
+# Backend build context — exclude dev/test artifacts from Docker image
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Environment — never bake secrets into image
+.env
+*.env
+
+# Test artifacts
+tests/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.lcov
+
+# Database files — use volume mounts in production
+*.db
+*.sqlite3
+
+# ML artifacts — mount via volume or download at startup
+data/adult_features.csv
+data/adult_labels.csv
+data/population_metrics_cache.json
+data/causal_effects_cache.json
+data/drift_reference.json
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docs / CI
+docs/
+README.md
+CONTRIBUTING.md

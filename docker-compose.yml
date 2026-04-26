@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+  # ── Backend (FastAPI) ──────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -12,24 +13,38 @@ services:
     environment:
       - DATABASE_URL=sqlite:///./fairguard.db
       - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-      - JWT_SECRET=${JWT_SECRET:-fairguard-dev-secret-change-in-prod}
+
+      # ── Security (override via .env or Docker secrets in prod) ──
+      - JWT_SECRET=${JWT_SECRET:-fairguard-dev-secret-CHANGE-IN-PROD}
+      - FAIRGUARD_API_KEYS=${FAIRGUARD_API_KEYS:-{}}
+
+      # ── Dev mode (set false in production) ──────────────────────
+      - FAIRGUARD_DEV_MODE=${FAIRGUARD_DEV_MODE:-false}
+
+      # ── LLM providers (all optional — system degrades gracefully) ─
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
     restart: unless-stopped
 
+  # ── Frontend (React + Nginx) ───────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_BASE_URL=http://localhost:8000
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+        - VITE_API_TOKEN=${VITE_API_TOKEN:-}
     ports:
       - "3000:80"
     depends_on:
