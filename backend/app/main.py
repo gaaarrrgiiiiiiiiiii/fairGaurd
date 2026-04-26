@@ -24,6 +24,7 @@ from app.models.database import init_db
 from app.routers import auth, decisions, drift, health, report, stream
 from app.routers import settings as settings_router
 from app.routers import audit as audit_router
+from app.routers import webhooks as webhooks_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -170,4 +171,9 @@ app.include_router(
     audit_router.router,
     prefix=f"{settings.API_V1_STR}/audit",
     tags=["Audit"],
+)
+app.include_router(
+    webhooks_router.router,
+    prefix=f"{settings.API_V1_STR}/webhooks",
+    tags=["Webhooks"],
 )

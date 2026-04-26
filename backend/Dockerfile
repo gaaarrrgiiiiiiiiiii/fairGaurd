@@ -26,8 +26,12 @@ COPY --from=builder /install /usr/local
 # Copy application source
 COPY --chown=fairguard:fairguard . .
 
-# Ensure data directory exists and is writable
+# Create writable data directory for SQLite and set ownership
 RUN mkdir -p /app/data && chown -R fairguard:fairguard /app/data
+
+# Tell the app where to store SQLite (non-root writable path)
+ENV FAIRGUARD_DATA_DIR=/app/data
+ENV DATABASE_URL=sqlite:////app/data/fairguard.db
 
 USER fairguard
 

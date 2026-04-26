@@ -22,8 +22,10 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Run PyTest
+        working-directory: backend
         env:
-          DATABASE_URL: "sqlite:///./test_fairguard.db"
+          DATABASE_URL: "sqlite:////tmp/test_fairguard.db"
+          FAIRGUARD_DATA_DIR: "/tmp"
           JWT_SECRET: "deploy-ci-secret-at-least-32-characters"
           FAIRGUARD_DEV_MODE: "true"
           FAIRGUARD_API_KEYS: "{}"

@@ -36,25 +36,28 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Engine setup
 # ---------------------------------------------------------------------------
-_DB_FILE = os.environ.get("DATABASE_URL", "sqlite:///./fairguard.db")
+_DB_URL_RAW = os.environ.get("DATABASE_URL", "sqlite:///./fairguard.db")
 
-# Resolve relative sqlite path to be inside the backend directory
-if _DB_FILE.startswith("sqlite:///./"):
-    _db_filename = _DB_FILE.replace("sqlite:///./", "")
-    _db_dir = os.path.dirname(os.path.abspath(__file__))
-    # Walk up to backend/ root
-    _backend_root = os.path.abspath(os.path.join(_db_dir, "../.."))
-    _db_abs = os.path.join(_backend_root, _db_filename)
-    DATABASE_URL = f"sqlite:///{_db_abs}"
+if _DB_URL_RAW.startswith("sqlite:///"):
+    # Resolve path — support both relative (./foo.db) and absolute (/data/foo.db)
+    _sqlite_path = _DB_URL_RAW[len("sqlite:///"):]
+    if not os.path.isabs(_sqlite_path):
+        # Relative path: anchor it to /app/data inside Docker, or the backend root locally
+        _sqlite_path = _sqlite_path.lstrip("./")
+        # /app/data/<file> inside Docker; backend/ locally via DATABASE_URL env override
+        _data_dir = os.environ.get("FAIRGUARD_DATA_DIR",
+                       os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data")))
+        _sqlite_path = os.path.join(_data_dir, _sqlite_path)
+    # Always create parent directory — covers first boot in any environment
+    _db_dir = os.path.dirname(_sqlite_path)
+    os.makedirs(_db_dir, exist_ok=True)
+    DATABASE_URL     = f"sqlite:///{_sqlite_path}"
+    DATABASE_URL_RAW = _sqlite_path          # used by drift.py (sqlite3 import)
 else:
-    DATABASE_URL = _DB_FILE
+    DATABASE_URL     = _DB_URL_RAW
+    DATABASE_URL_RAW = _DB_URL_RAW
 
-# SQLite raw path for legacy code that uses sqlite3 directly
-_sqlite_raw = DATABASE_URL.replace("sqlite:///", "")
-if DATABASE_URL.startswith("sqlite:///"):
-    DATABASE_URL_RAW = _sqlite_raw  # used by drift.py (sqlite3 import)
-else:
-    DATABASE_URL_RAW = DATABASE_URL
+logger.info("Database: %s", DATABASE_URL)
 
 engine = create_engine(
     DATABASE_URL,
@@ -99,6 +102,19 @@ class TenantThreshold(Base):
     cas_threshold       = Column(Float, default=0.20, nullable=False)
     mode                = Column(String, default="detect_and_correct", nullable=False)
     updated_at          = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+
+class Webhook(Base):
+    """Registered webhook endpoints for a tenant (Phase 2 — Gap 4)."""
+    __tablename__ = "webhooks"
+
+    id         = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id  = Column(String, nullable=False, index=True)
+    url        = Column(Text, nullable=False)
+    events     = Column(Text, nullable=False, default="bias.detected,drift.detected")
+    secret     = Column(String, nullable=True)   # HMAC-SHA256 signing secret
+    active     = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
 
 # ---------------------------------------------------------------------------
@@ -402,3 +418,71 @@ def verify_audit_chain(tenant_id: str) -> Dict[str, Any]:
         prev = row.record_hash
 
     return {"valid": True, "records_checked": len(rows), "first_violation": None}
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — Webhook CRUD (Gap 4)
+# ---------------------------------------------------------------------------
+
+def list_webhooks(tenant_id: str) -> List[Dict[str, Any]]:
+    db = SessionLocal()
+    try:
+        rows = db.query(Webhook).filter(Webhook.tenant_id == tenant_id).all()
+        return [
+            {"id": r.id, "url": r.url, "events": r.events,
+             "active": r.active, "created_at": r.created_at.isoformat()}
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+def create_webhook(tenant_id: str, url: str, events: str, secret: Optional[str]) -> str:
+    db = SessionLocal()
+    try:
+        row = Webhook(tenant_id=tenant_id, url=url, events=events, secret=secret)
+        db.add(row)
+        db.commit()
+        return row.id
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to create webhook: %s", exc)
+        raise
+    finally:
+        db.close()
+
+
+def delete_webhook(tenant_id: str, webhook_id: str) -> bool:
+    db = SessionLocal()
+    try:
+        row = db.query(Webhook).filter(
+            Webhook.id == webhook_id, Webhook.tenant_id == tenant_id
+        ).first()
+        if not row:
+            return False
+        db.delete(row)
+        db.commit()
+        return True
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to delete webhook: %s", exc)
+        raise
+    finally:
+        db.close()
+
+
+def get_webhooks_for_event(tenant_id: str, event_type: str) -> List[Dict[str, Any]]:
+    """Return active webhooks for a tenant that subscribe to event_type."""
+    db = SessionLocal()
+    try:
+        rows = db.query(Webhook).filter(
+            Webhook.tenant_id == tenant_id, Webhook.active == True  # noqa: E712
+        ).all()
+        return [
+            {"id": r.id, "url": r.url, "secret": r.secret}
+            for r in rows
+            if event_type in r.events.split(",")
+        ]
+    finally:
+        db.close()
+

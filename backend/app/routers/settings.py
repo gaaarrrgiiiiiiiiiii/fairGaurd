@@ -11,7 +11,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.auth.jwt_handler import verify_token
+from app.auth.rbac import TenantContext, admin_only, auditor_or_admin
 from app.models.database import (
     get_tenant_threshold_row,
     upsert_tenant_thresholds,
@@ -22,21 +22,7 @@ from app.services.threshold_config import ThresholdConfig
 router = APIRouter()
 
 
-# ---------------------------------------------------------------------------
-# Auth dependency
-# ---------------------------------------------------------------------------
-def _get_tenant(authorization: str = Depends(lambda: None)) -> str:
-    raise HTTPException(status_code=401, detail="Not authenticated")
-
-
-from fastapi import Header
-
-
-def get_current_tenant(authorization: str = Header(default=None)) -> str:
-    tenant = verify_token(authorization)
-    if not tenant:
-        raise HTTPException(status_code=401, detail="Invalid or missing token.")
-    return tenant
+# Auth handled by RBAC dependency — no manual dep needed
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +53,8 @@ class ThresholdResponse(BaseModel):
 # Routes
 # ---------------------------------------------------------------------------
 @router.get("/thresholds", response_model=ThresholdResponse, summary="Get tenant threshold config")
-def get_thresholds(tenant_id: str = Depends(get_current_tenant)):
+def get_thresholds(ctx: TenantContext = Depends(auditor_or_admin)):
+    tenant_id = ctx.tenant_id
     row = get_tenant_threshold_row(tenant_id)
     defaults = ThresholdConfig()
     if row:
@@ -94,8 +81,9 @@ def get_thresholds(tenant_id: str = Depends(get_current_tenant)):
 @router.put("/thresholds", response_model=ThresholdResponse, summary="Update tenant threshold config")
 def update_thresholds(
     body: ThresholdRequest,
-    tenant_id: str = Depends(get_current_tenant),
+    ctx: TenantContext = Depends(admin_only),
 ):
+    tenant_id = ctx.tenant_id
     upsert_tenant_thresholds(
         tenant_id=tenant_id,
         dpd=body.dpd_threshold,

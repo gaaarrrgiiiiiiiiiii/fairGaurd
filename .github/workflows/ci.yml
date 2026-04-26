@@ -35,15 +35,17 @@ jobs:
         run: python data/prep_adult_data.py || echo "Dataset prep skipped (network unavailable)"
 
       - name: Run tests with coverage
+        working-directory: backend
         env:
-          DATABASE_URL: "sqlite:///./test_fairguard.db"
+          DATABASE_URL: "sqlite:////tmp/test_fairguard.db"
+          FAIRGUARD_DATA_DIR: "/tmp"
           JWT_SECRET: "ci-test-secret-at-least-32-characters"
           ALLOWED_ORIGINS: "http://localhost:5173"
           FAIRGUARD_DEV_MODE: "true"
           FAIRGUARD_API_KEYS: "{}"
         run: |
           pytest tests/ -v \
-            --cov=backend/app \
+            --cov=app \
             --cov-report=xml \
             --cov-report=term-missing \
             -x
@@ -102,22 +104,33 @@ jobs:
 
       - name: Smoke test — health check
         run: |
+          # DATABASE_URL is set via ENV in Dockerfile; no override needed.
+          # FAIRGUARD_DATA_DIR=/app/data is also set in the image.
           docker run -d -p 8000:8000 \
             -e JWT_SECRET=ci-secret-at-least-32-characters \
             -e FAIRGUARD_DEV_MODE=true \
             -e FAIRGUARD_API_KEYS='{}' \
             --name fg-smoke fairguard-backend
-          echo "Waiting for server to be ready..."
+
+          echo "Waiting for server to be ready (up to 75s)..."
           for i in $(seq 1 15); do
             if curl -sf http://localhost:8000/health; then
-              echo "Server is up after ${i}x5s"
+              echo "Server is up after $((i*5))s"
               break
             fi
-            if [ $i -eq 15 ]; then
-              echo "Server did not start in time"
+            if [ "$i" -eq 15 ]; then
+              echo "Server did not start in time. Container logs:"
               docker logs fg-smoke
+              docker stop fg-smoke || true
               exit 1
             fi
             sleep 5
           done
+
+          # Verify decision endpoint responds (sanity check)
+          curl -sf http://localhost:8000/health | grep -q '"status"' || {
+            echo "Health endpoint did not return expected JSON"
+            docker logs fg-smoke
+            exit 1
+          }
           docker stop fg-smoke

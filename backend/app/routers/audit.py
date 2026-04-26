@@ -4,21 +4,14 @@ Audit router — Phase 1C.
 Endpoints:
   GET /v1/audit/verify   — verify hash-chain integrity for the tenant's logs
 """
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from app.auth.jwt_handler import verify_token
+from app.auth.rbac import TenantContext, auditor_or_admin
 from app.models.database import verify_audit_chain
 
 router = APIRouter()
-
-
-def get_current_tenant(authorization: str = Header(default=None)) -> str:
-    tenant = verify_token(authorization)
-    if not tenant:
-        raise HTTPException(status_code=401, detail="Invalid or missing token.")
-    return tenant
 
 
 class ChainVerifyResponse(BaseModel):
@@ -29,7 +22,8 @@ class ChainVerifyResponse(BaseModel):
 
 
 @router.get("/verify", response_model=ChainVerifyResponse, summary="Verify audit log integrity")
-def verify_chain(tenant_id: str = Depends(get_current_tenant)):
+def verify_chain(ctx: TenantContext = Depends(auditor_or_admin)):
+    tenant_id = ctx.tenant_id
     """
     Walks the SHA-256 hash chain for this tenant's audit logs.
     Returns valid=True if every record's hash is consistent with its predecessor.

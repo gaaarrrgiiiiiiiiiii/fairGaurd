@@ -1,17 +1,19 @@
 """
 JWT authentication utilities.
 
-  verify_token(token)    — validate a Bearer token, return tenant_id or None
-  create_token(tenant_id) — generate a signed JWT for a tenant
-  get_valid_api_keys()   — load API keys from environment (never hardcoded)
+  verify_token(token)            — validate token, return (tenant_id, role) or None
+  create_token(tenant_id, role)  — generate signed JWT with role claim
+  get_valid_api_keys()           — load API keys from environment
 
 Environment variables:
   JWT_SECRET           — HS256 signing secret (REQUIRED in prod)
   JWT_EXPIRY_HOURS     — token TTL (default: 24)
   FAIRGUARD_API_KEYS   — JSON object mapping raw API keys to tenant IDs
                          e.g. '{"sk_fgt_abc": "tenant_acme"}'
-  FAIRGUARD_DEV_MODE   — if "true", a synthetic dev tenant is accepted when
-                         no valid token is provided (NEVER enable in prod)
+  FAIRGUARD_API_ROLES  — JSON object mapping raw API keys to roles
+                         e.g. '{"sk_fgt_abc": "admin"}'
+                         Defaults to 'admin' if key not present.
+  FAIRGUARD_DEV_MODE   — if "true", accepts unauthenticated requests in dev
 """
 import datetime
 import json
@@ -67,10 +69,35 @@ def _load_api_keys() -> Dict[str, str]:
 _API_KEYS: Dict[str, str] = _load_api_keys()
 
 
-def create_token(tenant_id: str) -> str:
-    """Generate a signed JWT for the given tenant."""
+def _load_api_roles() -> Dict[str, str]:
+    """
+    Load API key → role mapping from FAIRGUARD_API_ROLES env var.
+    Roles: 'admin' | 'auditor' | 'viewer'
+    Defaults to 'admin' if a key is not listed.
+    """
+    raw = os.getenv("FAIRGUARD_API_ROLES", "")
+    if not raw:
+        return {}
+    try:
+        roles = json.loads(raw)
+        valid = {"admin", "auditor", "viewer"}
+        return {str(k): str(v) if str(v) in valid else "viewer" for k, v in roles.items()}
+    except (json.JSONDecodeError, ValueError) as exc:
+        logger.error("Failed to parse FAIRGUARD_API_ROLES: %s", exc)
+        return {}
+
+
+_API_ROLES: Dict[str, str] = _load_api_roles()
+
+
+def create_token(tenant_id: str, role: str = "admin") -> str:
+    """Generate a signed JWT for the given tenant with a role claim."""
+    valid_roles = {"admin", "auditor", "viewer"}
+    if role not in valid_roles:
+        role = "viewer"
     payload = {
         "tenant_id": tenant_id,
+        "role": role,
         "iat": datetime.datetime.utcnow(),
         "exp": datetime.datetime.utcnow()
                + datetime.timedelta(hours=JWT_EXPIRY_HOURS),
@@ -78,27 +105,35 @@ def create_token(tenant_id: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
-def verify_token(token: Optional[str]) -> Optional[str]:
+def verify_token(token: Optional[str]) -> Optional[tuple]:
     """
-    Validate a Bearer token and return the tenant_id, or None if invalid.
+    Validate a Bearer token and return (tenant_id, role), or None if invalid.
 
     Accepts:
       • A full JWT (preferred for production)
       • A raw API key matching FAIRGUARD_API_KEYS (for SDK/curl usage)
+
+    Role defaults to 'admin' for backward-compatible tokens without role claim.
     """
     if not token:
         return None
 
     raw = token.removeprefix("Bearer ").strip()
 
-    # 1. Raw API key lookup (loaded from env — no hardcoded secrets)
+    # 1. Raw API key lookup
     if raw in _API_KEYS:
-        return _API_KEYS[raw]
+        tenant_id = _API_KEYS[raw]
+        role = _API_ROLES.get(raw, "admin")
+        return (tenant_id, role)
 
     # 2. JWT decode
     try:
         decoded = jwt.decode(raw, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return decoded.get("tenant_id")
+        tenant_id = decoded.get("tenant_id")
+        role = decoded.get("role", "admin")  # backward compat
+        if tenant_id:
+            return (tenant_id, role)
+        return None
     except jwt.ExpiredSignatureError:
         logger.debug("Token expired")
         return None
