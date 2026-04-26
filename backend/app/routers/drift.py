@@ -2,23 +2,28 @@
 Drift router — Kolmogorov-Smirnov test against a reference distribution
 computed from the actual validation split of the UCI Adult dataset.
 
+H1: Auth enforced. Tenant ID is extracted from the verified JWT/API key,
+not accepted as an arbitrary query parameter.
+
 Reference distribution is stored in data/drift_reference.json and generated
 by data/prep_adult_data.py (or computed on-demand here if missing).
 """
 import json
 import logging
 import os
-import sqlite3
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Request, Security, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.auth.jwt_handler import verify_token, DEV_MODE
 from app.models.database import DATABASE_URL
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+security = HTTPBearer(auto_error=False)
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -29,6 +34,27 @@ REF_DIST_PATH  = os.path.join(DATA_DIR, "drift_reference.json")
 MODEL_PATH     = os.path.join(DATA_DIR, "biased_model.joblib")
 FEAT_PATH      = os.path.join(DATA_DIR, "adult_features.csv")
 LABL_PATH      = os.path.join(DATA_DIR, "adult_labels.csv")
+
+
+# ---------------------------------------------------------------------------
+# Auth dependency
+# ---------------------------------------------------------------------------
+def _get_tenant(
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(security),
+) -> str:
+    """Return tenant_id from a valid token, or raise 401."""
+    raw_token = credentials.credentials if credentials else None
+    tenant_id = verify_token(raw_token)
+    if tenant_id is None:
+        if DEV_MODE:
+            logger.warning("DEV_MODE: drift endpoint accessed without auth.")
+            return "tenant_local_dev"
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return tenant_id
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +108,6 @@ def _load_reference_distribution() -> List[float]:
             )
 
     # Empirical fallback — statistically sound bimodal distribution
-    # matching the known UCI Adult model output shape
     logger.warning("Using empirical fallback for drift reference distribution.")
     rng = np.random.default_rng(42)
     approved = rng.normal(0.84, 0.06, 600).clip(0, 1).tolist()
@@ -98,17 +123,23 @@ _REFERENCE_DISTRIBUTION: List[float] = _load_reference_distribution()
 # Endpoint
 # ---------------------------------------------------------------------------
 @router.get("/status")
-async def check_drift(tenant_id: str = "tenant_local_dev"):
+async def check_drift(tenant_id: str = Depends(_get_tenant)):
     """
     Run a Kolmogorov-Smirnov test comparing recent model confidence scores
     from the audit log against the reference validation-set distribution.
 
+    Requires valid Bearer token. Tenant is inferred from the token — cannot
+    be spoofed via query parameter.
+
     p-value < 0.05 → significant drift detected.
     """
+    import sqlite3
     from scipy.stats import ks_2samp  # local import to avoid slow startup
 
+    # Read recent audit data
     try:
-        conn = sqlite3.connect(DATABASE_URL)
+        db_raw = DATABASE_URL.replace("sqlite:///", "")
+        conn = sqlite3.connect(db_raw)
         c = conn.cursor()
         c.execute(
             "SELECT original_decision FROM audit_logs WHERE tenant_id = ? "

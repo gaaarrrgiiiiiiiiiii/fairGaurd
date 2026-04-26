@@ -41,10 +41,44 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup / shutdown hooks."""
+    """
+    M1: Explicit startup warm-up.
+    All heavy singletons (model loads, DiCE explainer, population metrics)
+    are initialised here before the server accepts any requests.
+    References stored on app.state for future DI migration.
+    """
     logger.info("🚀 FairGuard starting up…")
+
+    # 1. Database
     init_db()
     logger.info("✅ Database initialised.")
+
+    # 2. Warm up ML singletons (they already init at import — this is explicit
+    #    documentation + state registration for DI)
+    try:
+        from app.services.bias_detector import bias_detector
+        from app.services.causal_engine import causal_engine
+        from app.services.counterfactual_engine import counterfactual_engine
+        from app.services.llm_service import llm_service
+
+        # Register on app.state — future DI can read from here
+        app.state.bias_detector           = bias_detector
+        app.state.causal_engine           = causal_engine
+        app.state.counterfactual_engine   = counterfactual_engine
+        app.state.llm_service             = llm_service
+
+        model_ok  = bias_detector.model is not None
+        dice_ok   = counterfactual_engine._dice_exp is not None
+        logger.info(
+            "✅ Services ready | model=%s | dice=%s",
+            '✓' if model_ok else '✕ (will use fallbacks)',
+            '✓' if dice_ok  else '✕ (will use attribute-flip)',
+        )
+    except Exception as exc:
+        logger.error("❌ Service warm-up failed: %s", exc, exc_info=True)
+
+    logger.info("🔒 FAIRGUARD_DEV_MODE=%s", os.getenv('FAIRGUARD_DEV_MODE', 'false'))
+    logger.info("🎯 FairGuard ready.")
     yield
     logger.info("🛑 FairGuard shutting down.")
 

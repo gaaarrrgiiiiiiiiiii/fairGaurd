@@ -10,6 +10,7 @@ Compliance-rate calculation is fixed:
   Records where no correction was made are NOT counted as interventions,
   even if an explanation is present.
 """
+import asyncio
 import datetime
 import json
 import logging
@@ -214,3 +215,56 @@ def get_recent_audit_logs(
         ]
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# H2 — Background update (for fire-and-forget LLM explanation)
+# ---------------------------------------------------------------------------
+
+def update_audit_explanation(audit_id: str, explanation: str) -> None:
+    """
+    Overwrite the explanation field of an existing audit record.
+    Called from a background task after the async LLM response arrives.
+    """
+    db = SessionLocal()
+    try:
+        record = db.query(AuditLog).filter(AuditLog.id == audit_id).first()
+        if record:
+            record.explanation = explanation
+            db.commit()
+            logger.debug("Audit log %s explanation updated.", audit_id[:8])
+        else:
+            logger.warning("update_audit_explanation: audit_id %s not found.", audit_id)
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to update audit explanation: %s", exc, exc_info=True)
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# H2 — Async wrappers (run sync ORM in thread pool — never blocks event loop)
+# ---------------------------------------------------------------------------
+
+async def create_audit_log_async(
+    tenant_id: str,
+    original_decision: Dict[str, Any],
+    corrected_decision: Dict[str, Any],
+    bias_scores: Dict[str, float],
+    explanation: str,
+    protected_attributes: List[str],
+) -> str:
+    """Async wrapper — runs create_audit_log in a thread-pool executor."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        create_audit_log,
+        tenant_id, original_decision, corrected_decision,
+        bias_scores, explanation, protected_attributes,
+    )
+
+
+async def update_audit_explanation_async(audit_id: str, explanation: str) -> None:
+    """Async wrapper — runs update_audit_explanation in a thread-pool executor."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, update_audit_explanation, audit_id, explanation)

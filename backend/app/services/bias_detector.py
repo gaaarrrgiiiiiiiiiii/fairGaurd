@@ -15,7 +15,7 @@ need to change when the underlying model or dataset changes.
 import os
 import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -53,6 +53,27 @@ _DEFAULT_ROW: Dict[str, Any] = {
     "hours-per-week": 40,
     "native-country": "United-States",
 }
+
+
+# ---------------------------------------------------------------------------
+# H5 — ICD cache (bounded LRU-style dict, keyed by frozen feature + attr tuple)
+# ---------------------------------------------------------------------------
+_ICD_CACHE_MAX = 512
+_icd_cache: Dict[Tuple, float] = {}
+
+
+def _icd_cache_key(
+    features: Dict[str, Any],
+    protected_attributes: List[str],
+) -> Optional[Tuple]:
+    """Create a hashable cache key from features dict + protected attrs."""
+    try:
+        return (
+            tuple(sorted((k, str(v)) for k, v in features.items())),
+            tuple(sorted(protected_attributes)),
+        )
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -234,11 +255,16 @@ class BiasDetector:
         """
         ICD = max over all protected attrs of |P(ŷ=1|x) − P(ŷ=1|x_flipped)|
 
-        Uses real model predict_proba so the signal tracks the actual model
-        bias rather than a lookup table.
+        H5: Result is cached by (features, protected_attributes) tuple.
+        Cache is bounded at 512 entries (LRU-style eviction).
         """
         if self.model is None or not hasattr(self.model, "predict_proba"):
             return 0.0
+
+        # Check cache
+        key = _icd_cache_key(features, protected_attributes)
+        if key is not None and key in _icd_cache:
+            return _icd_cache[key]
 
         try:
             df_base = self._pad_features(features)
@@ -280,6 +306,14 @@ class BiasDetector:
                 flipped_prob = float(self.model.predict_proba(df_flipped)[0][1])
                 disparity = abs(base_prob - flipped_prob)
                 max_disparity = max(max_disparity, disparity)
+
+            # Store in cache (evict oldest 50% when full)
+            if key is not None:
+                if len(_icd_cache) >= _ICD_CACHE_MAX:
+                    evict = list(_icd_cache.keys())[: _ICD_CACHE_MAX // 2]
+                    for k in evict:
+                        del _icd_cache[k]
+                _icd_cache[key] = max_disparity
 
             return max_disparity
 
