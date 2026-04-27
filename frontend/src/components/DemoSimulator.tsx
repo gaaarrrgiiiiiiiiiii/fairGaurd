@@ -69,23 +69,30 @@ const DemoSimulator: React.FC<Props> = ({ onNewDecision }) => {
     setProgress(0);
   };
 
+  const progressPct = isRunning ? (progress / TEST_CASES.length) * 100 : 0;
+
   return (
     <div className="simulator-box">
-      <div>
-        <h3 style={{ color: 'white', fontWeight: 'bold', marginBottom: '4px' }}>
-          Scenario Simulator
+      <div style={{ flex: 1 }}>
+        <h3 className="simulator-title">
+          🧪 Scenario Simulator
         </h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+        <p className="simulator-desc">
           Fire 10 diverse applications through the firewall — including the John vs Sarah parity case.
           {isRunning && (
-            <span style={{ color: 'var(--accent-lime)', marginLeft: '0.5rem' }}>
+            <span style={{ color: 'var(--accent-lime)', marginLeft: '0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
               [{progress}/{TEST_CASES.length}]
             </span>
           )}
         </p>
+        {isRunning && (
+          <div className="simulator-progress">
+            <div className="simulator-progress-fill" style={{ width: `${progressPct}%` }} />
+          </div>
+        )}
       </div>
       <button className="primary-btn" onClick={runDemo} disabled={isRunning}>
-        {isRunning ? 'Running Simulation…' : 'Run Demo Sequence'}
+        {isRunning ? 'Running…' : 'Run Demo'}
       </button>
     </div>
   );

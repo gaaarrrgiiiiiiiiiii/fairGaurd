@@ -41,6 +41,7 @@ export interface StatsData {
   total: number;
   interventions: number;
   complianceRate: number;
+  avgLatency?: number;
 }
 
 export interface DriftStatus {

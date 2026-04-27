@@ -10,36 +10,47 @@ interface Props {
 }
 
 const BiasMetricsChart: React.FC<Props> = ({ data }) => (
-  <div className="card-wrapper" style={{ height: '350px' }}>
-    <h2 className="card-title">Fairness Thresholds Over Time</h2>
+  <div className="card-wrapper chart-card sf-chart-card">
+    <h2 className="card-title" style={{ display: 'none' }}>Fairness Thresholds Over Time</h2>
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#2a364a" />
-        <XAxis dataKey="timestamp" stroke="#6b7280" />
-        <YAxis stroke="#6b7280" domain={[0, 0.4]} />
         <Tooltip
-          contentStyle={{ backgroundColor: '#151c28', borderColor: '#2a364a', color: 'white' }}
-          itemStyle={{ color: 'white' }}
+          contentStyle={{
+            backgroundColor: 'rgba(11, 14, 20, 0.9)',
+            backdropFilter: 'blur(20px)',
+            borderColor: 'rgba(184, 242, 58, 0.15)',
+            borderRadius: '12px',
+            color: 'white',
+            padding: '12px 16px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          }}
+          itemStyle={{ color: 'white', fontFamily: 'Inter', fontSize: '0.82rem' }}
+          labelStyle={{ color: '#9ca3af', fontFamily: 'JetBrains Mono', fontSize: '0.75rem' }}
         />
-        <Legend />
-        <ReferenceLine y={0.15} label="ICD Threshold" stroke="#ef4444" strokeDasharray="3 3" />
+        <Legend wrapperStyle={{ fontFamily: 'Inter', fontSize: '0.82rem' }} />
         <Line
           type="monotone"
           dataKey="icd_score"
           name="Individual Disparity"
-          stroke="var(--accent-yellow)"
-          strokeWidth={2}
+          stroke="#f59e0b"
+          strokeWidth={2.5}
           dot={false}
-          isAnimationActive={false}
+          activeDot={{ r: 5, fill: '#f59e0b', stroke: '#050608', strokeWidth: 2 }}
+          isAnimationActive={true}
+          animationDuration={800}
+          animationEasing="ease-out"
         />
         <Line
           type="monotone"
           dataKey="dpd_score"
           name="Demographic Parity"
-          stroke="var(--accent-green)"
-          strokeWidth={2}
+          stroke="#10b981"
+          strokeWidth={2.5}
           dot={false}
-          isAnimationActive={false}
+          activeDot={{ r: 5, fill: '#10b981', stroke: '#050608', strokeWidth: 2 }}
+          isAnimationActive={true}
+          animationDuration={800}
+          animationEasing="ease-out"
         />
       </LineChart>
     </ResponsiveContainer>

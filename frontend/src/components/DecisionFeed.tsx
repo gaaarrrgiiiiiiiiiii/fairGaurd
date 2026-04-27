@@ -7,12 +7,17 @@ interface Props {
 }
 
 const DecisionFeed: React.FC<Props> = ({ decisions }) => (
-  <div className="card-wrapper feed-container">
-    <h2 className="card-title">Live Decision Firewall</h2>
+  <div className="feed-container sf-clean-feed">
     <div className="feed-list">
       {decisions.length === 0 ? (
-        <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '4rem' }}>
-          Awaiting traffic…
+        <div className="feed-empty sf-feed-empty">
+          <div className="feed-empty-icon" style={{ opacity: 0.2 }}>🛡️</div>
+          <div className="sf-empty-title">
+            Awaiting traffic…
+          </div>
+          <div className="sf-empty-sub">
+            Run the simulator to fire test decisions through the firewall
+          </div>
         </div>
       ) : (
         decisions.map((d) => (
