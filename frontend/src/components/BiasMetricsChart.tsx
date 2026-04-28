@@ -1,7 +1,7 @@
 import React from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer, ReferenceLine,
+  LineChart, Line,
+  Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import type { ChartDataPoint } from '../types';
 
