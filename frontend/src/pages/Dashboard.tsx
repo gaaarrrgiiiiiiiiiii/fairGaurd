@@ -131,16 +131,18 @@ function Dashboard() {
           onClick={async () => {
             try {
               const res = await api.get('/v1/report/generate', { responseType: 'blob' });
-              const url = window.URL.createObjectURL(new Blob([res.data]));
+              const blob = new Blob([res.data], { type: 'application/pdf' });
+              const url = window.URL.createObjectURL(blob);
               const link = document.createElement('a');
               link.href = url;
               link.setAttribute('download', 'fairguard_compliance_report.pdf');
               document.body.appendChild(link);
               link.click();
               link.remove();
-            } catch (err) {
-              console.error("Download failed:", err);
-              alert("Failed to download the compliance report.");
+              setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+            } catch {
+              // Fallback: open the report endpoint directly in a new tab
+              window.open(complianceReportUrl(), '_blank');
             }
           }}
         >

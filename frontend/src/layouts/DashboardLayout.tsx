@@ -34,8 +34,14 @@ export default function DashboardLayout({ children, headerContent }: DashboardLa
         <div className="sidebar-header">
           <Link to="/" className="sidebar-logo">
             <div className="sidebar-logo-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#CCFF00" strokeWidth="2" strokeLinecap="round" width="16" height="16">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-label="FairGuard">
+                <circle cx="32" cy="32" r="30" fill="rgba(204,255,0,0.07)" />
+                <g stroke="#CCFF00" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
+                  <polygon points="32,10 52,20 52,42 32,56 12,42 12,20" opacity="0.9" />
+                  <line x1="32" y1="10" x2="32" y2="56" opacity="0.5" />
+                  <line x1="12" y1="31" x2="52" y2="31" opacity="0.5" />
+                  <rect x="26" y="25" width="12" height="12" rx="2" fill="#CCFF00" opacity="0.85" />
+                </g>
               </svg>
             </div>
             <span className="sidebar-logo-text">

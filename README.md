@@ -8,7 +8,7 @@
 
 **Intercept biased ML decisions before they reach users — in production, at scale.**
 
-[![CI](https://github.com/your-org/fairguard/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/fairguard/actions/workflows/ci.yml)
+[![CI](https://github.com/gaaarrrgiiiiiiiiiii/fairGaurd/actions/workflows/ci.yml/badge.svg)](https://github.com/gaaarrrgiiiiiiiiiii/fairGaurd/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111+-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![EU AI Act](https://img.shields.io/badge/EU%20AI%20Act-Art.%2010%2F12%2F13%2F14-blue)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52021PC0206)

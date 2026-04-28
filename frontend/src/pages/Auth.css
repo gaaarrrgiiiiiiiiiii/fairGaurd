@@ -95,3 +95,59 @@
 .text-btn:hover {
   text-decoration: underline;
 }
+
+/* ── Role Picker ────────────────────────────────────────────────── */
+.role-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.85rem 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  color: #8b949e;
+  position: relative;
+  overflow: hidden;
+}
+
+.role-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(204, 255, 0, 0.08), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.role-card:hover {
+  border-color: rgba(204, 255, 0, 0.2);
+  color: #e0e0e0;
+  transform: translateY(-1px);
+}
+
+.role-card:hover::before { opacity: 1; }
+
+.role-card.selected {
+  border-color: rgba(204, 255, 0, 0.45);
+  background: rgba(204, 255, 0, 0.06);
+  color: #CCFF00;
+  box-shadow: 0 0 16px rgba(204, 255, 0, 0.1), inset 0 0 12px rgba(204, 255, 0, 0.04);
+}
+
+.role-card.selected::before { opacity: 1; }
+
+.role-card-icon  { font-size: 1.4rem; line-height: 1; }
+.role-card-label { font-size: 0.8rem; font-weight: 700; font-family: var(--font-display, 'Space Grotesk', sans-serif); letter-spacing: -0.2px; }
+.role-card-desc  { font-size: 0.68rem; opacity: 0.65; font-family: var(--font-mono, monospace); }
+
