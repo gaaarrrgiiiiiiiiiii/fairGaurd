@@ -13,6 +13,7 @@ export interface UseAnalyticsResult {
   stats: StatsData;
   loading: boolean;
   refresh: () => void;
+  setStats: React.Dispatch<React.SetStateAction<StatsData>>;
 }
 
 const _DEFAULT: StatsData = { total: 0, interventions: 0, complianceRate: 100 };
@@ -35,10 +36,14 @@ export function useAnalytics(): UseAnalyticsResult {
   }, []);
 
   useEffect(() => {
-    refresh();
+    // Initial fetch via setTimeout to avoid synchronous setState in effect body
+    const immediate = setTimeout(refresh, 0);
     const id = setInterval(refresh, POLL_MS);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(immediate);
+      clearInterval(id);
+    };
   }, [refresh]);
 
-  return { stats, loading, refresh };
+  return { stats, loading, refresh, setStats };
 }

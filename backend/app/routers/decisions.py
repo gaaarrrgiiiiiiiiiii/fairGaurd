@@ -98,6 +98,7 @@ async def evaluate_decision(
             explanation="Passed through. No protected attributes evaluated.",
             audit_id=audit_id,
             domain=body.domain,
+            bias_scores={},
         )
 
     # --- Main pipeline ---
@@ -218,6 +219,7 @@ async def evaluate_decision(
             explanation=explanation,
             audit_id=audit_id,
             domain=body.domain,
+            bias_scores=bias_scores,
         )
 
     except Exception as exc:
@@ -243,6 +245,7 @@ async def evaluate_decision(
             bias_detected=False,
             explanation="Safety Passthrough: ML engine was unable to evaluate request.",
             audit_id=audit_id,
+            bias_scores={},
         )
 
 
@@ -292,6 +295,7 @@ async def _run_single(
             explanation="Passed through. No protected attributes evaluated.",
             audit_id=audit_id,
             domain=item.domain,
+            bias_scores={},
         )
 
     try:
@@ -360,6 +364,7 @@ async def _run_single(
             explanation=explanation,
             audit_id=audit_id,
             domain=item.domain,
+            bias_scores=bias_scores,
         )
     except Exception as exc:
         logger.error("Batch item pipeline failure: %s", exc)
@@ -368,6 +373,7 @@ async def _run_single(
             corrected_decision=item.model_output,
             bias_detected=False,
             explanation="Safety Passthrough: pipeline error.",
+            bias_scores={},
         )
 
 

@@ -58,7 +58,7 @@ export function useSSE(
 
         onEvent(decision, gaugeMetrics, chartPoint);
       },
-      (_err) => {
+      () => {
         setConnected(false);
         setError('Stream disconnected — retrying…');
       },

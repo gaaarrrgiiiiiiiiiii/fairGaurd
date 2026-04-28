@@ -8,7 +8,7 @@ import BiasMetricsChart from '../components/BiasMetricsChart';
 import CausalGraph from '../components/CausalGraph';
 import DemoSimulator from '../components/DemoSimulator';
 import MetricsGaugePanel from '../components/MetricsGaugePanel';
-import { complianceReportUrl } from '../services/api';
+import api, { complianceReportUrl } from '../services/api';
 import { useSSE } from '../hooks/useSSE';
 import { useAnalytics } from '../hooks/useAnalytics';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -20,7 +20,7 @@ import type {
 
 function Dashboard() {
   // ── Real-time data ──────────────────────────────────────────────────────
-  const { stats, refresh: refreshStats } = useAnalytics();
+  const { stats, refresh: refreshStats, setStats } = useAnalytics();
 
   const [decisions, setDecisions]       = useState<DecisionRecord[]>([]);
   const [latencyAvg, setLatencyAvg]     = useState<number>(0);
@@ -41,13 +41,43 @@ function Dashboard() {
 
   // Manual simulator submissions (still useful for live demos)
   const handleNewDecision = useCallback(
-    (decision: DecisionRecord & { latency?: number }) => {
+    (decision: DecisionRecord & { latency?: number; bias_scores?: any }) => {
       setDecisions((prev) => [decision, ...prev].slice(0, 50));
       if (decision.latency) {
         setLatencyAvg((prev) => Math.round((prev * 2 + decision.latency!) / 3));
       }
+
+      // Update Gauge Metrics
+      if (decision.bias_scores) {
+        const gauge: GaugeMetrics = {
+          dpd: decision.bias_scores.DPD || 0,
+          eod: decision.bias_scores.EOD || 0,
+          icd: decision.bias_scores.ICD || 0,
+          cas: decision.bias_scores.CAS || 0,
+        };
+        setGaugeMetrics(gauge);
+        
+        const now = new Date();
+        const ts  = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const chartPoint: ChartDataPoint = {
+          timestamp: ts,
+          icd_score: gauge.icd,
+          dpd_score: gauge.dpd,
+        };
+        setChartData((prev) => [...prev, chartPoint].slice(-10));
+      }
+
+      setStats((prev) => {
+        const interventions = prev.interventions + (decision.bias_detected ? 1 : 0);
+        const total = prev.total + 1;
+        const complianceRate = total > 0 ? Math.round(((total - interventions) / total) * 100) : 100;
+        return { total, interventions, complianceRate };
+      });
+
+      // Optionally refresh stats from DB
+      refreshStats();
     },
-    [],
+    [refreshStats, setStats],
   );
 
   const { connected, error: sseError } = useSSE(handleStreamEvent);
@@ -98,7 +128,21 @@ function Dashboard() {
         <button
           className="lp-btn-primary"
           style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-          onClick={() => window.open(complianceReportUrl(), '_blank')}
+          onClick={async () => {
+            try {
+              const res = await api.get('/v1/report/generate', { responseType: 'blob' });
+              const url = window.URL.createObjectURL(new Blob([res.data]));
+              const link = document.createElement('a');
+              link.href = url;
+              link.setAttribute('download', 'fairguard_compliance_report.pdf');
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+            } catch (err) {
+              console.error("Download failed:", err);
+              alert("Failed to download the compliance report.");
+            }
+          }}
         >
           Download Report
         </button>
@@ -112,6 +156,7 @@ function Dashboard() {
         total={stats.total}
         interventions={stats.interventions}
         complianceRate={stats.complianceRate}
+        avgLatency={latencyAvg}
       />
       <MetricsGaugePanel metrics={gaugeMetrics} />
 

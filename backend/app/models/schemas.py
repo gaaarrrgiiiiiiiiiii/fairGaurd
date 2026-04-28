@@ -192,6 +192,7 @@ class DecisionResponse(BaseModel):
     explanation: Optional[str] = None
     audit_id: Optional[str] = None
     domain: Optional[str] = None
+    bias_scores: Optional[Dict[str, float]] = None
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 
-const CausalGraph = ({ decision }: { decision?: any }) => {
+import type { DecisionRecord } from '../types';
+
+const CausalGraph = ({ decision }: { decision?: DecisionRecord }) => {
   // Determine if there is bias and which attribute is the cause
   const isBiased = decision?.bias_detected === true;
   

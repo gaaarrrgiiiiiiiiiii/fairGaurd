@@ -4,19 +4,19 @@ import type { DecisionRecord, TestCase } from '../types';
 
 const TEST_CASES: TestCase[] = [
   { name: 'John Doe (Male)',           age: 35, income: 55000, sex: 'Male',   expectedOrig: 'approved', attr: 'sex'    },
-  { name: 'Sarah Smith (Female)',      age: 35, income: 55000, sex: 'Female', expectedOrig: 'denied',   attr: 'sex'    },
   { name: 'Michael Chen (Under 30)',   age: 29, income: 42000, sex: 'Male',   expectedOrig: 'approved', attr: 'age'    },
-  { name: 'Maria Garcia (Over 40)',    age: 41, income: 82000, sex: 'Female', expectedOrig: 'denied',   attr: 'age'    },
-  { name: 'James Wilson (High Income)',age: 50, income: 95000, sex: 'Male',   expectedOrig: 'approved', attr: 'income' },
-  { name: 'Elena Rostova (Low Income)',age: 32, income: 18000, sex: 'Female', expectedOrig: 'denied',   attr: 'income' },
+  { name: 'Sarah Smith (Female)',      age: 35, income: 55000, sex: 'Female', expectedOrig: 'denied',   attr: 'sex'    },
   { name: 'David Kim (Male)',          age: 24, income: 38000, sex: 'Male',   expectedOrig: 'approved', attr: 'sex'    },
-  { name: 'Anita Patel (Over 40)',     age: 45, income: 64000, sex: 'Female', expectedOrig: 'denied',   attr: 'age'    },
+  { name: 'Maria Garcia (Over 40)',    age: 41, income: 82000, sex: 'Female', expectedOrig: 'denied',   attr: 'age'    },
+  { name: 'Elena Rostova (Low Income)',age: 32, income: 18000, sex: 'Female', expectedOrig: 'denied',   attr: 'income' },
+  { name: 'James Wilson (High Income)',age: 50, income: 95000, sex: 'Male',   expectedOrig: 'approved', attr: 'income' },
   { name: 'Wei Zhang (Low Income)',    age: 39, income: 15000, sex: 'Male',   expectedOrig: 'approved', attr: 'income' },
+  { name: 'Anita Patel (Over 40)',     age: 45, income: 64000, sex: 'Female', expectedOrig: 'denied',   attr: 'age'    },
   { name: 'Emily Johnson (Under 30)',  age: 28, income: 51000, sex: 'Female', expectedOrig: 'denied',   attr: 'age'    },
 ];
 
 interface Props {
-  onNewDecision: (decision: DecisionRecord & { latency: number }) => void;
+  onNewDecision: (decision: DecisionRecord & { latency: number; bias_scores?: any }) => void;
 }
 
 const DemoSimulator: React.FC<Props> = ({ onNewDecision }) => {
@@ -58,6 +58,12 @@ const DemoSimulator: React.FC<Props> = ({ onNewDecision }) => {
             ? `Application approved after intercepting algorithmic bias on protected attribute: [${tc.attr}].`
             : 'No statistically significant bias detected.',
           latency,
+          bias_scores: {
+            DPD: intercepted ? 0.80 + (Math.random() * 0.15) : 0.01 + (Math.random() * 0.14),
+            EOD: intercepted ? 0.70 + (Math.random() * 0.20) : 0.05 + (Math.random() * 0.15),
+            ICD: intercepted ? 0.60 + (Math.random() * 0.25) : 0.02 + (Math.random() * 0.08),
+            CAS: intercepted ? 0.75 + (Math.random() * 0.23) : 0.01 + (Math.random() * 0.11),
+          }
         });
       }
 
