@@ -133,21 +133,18 @@ async def check_drift(tenant_id: str = Depends(_get_tenant)):
 
     p-value < 0.05 → significant drift detected.
     """
-    import sqlite3
     from scipy.stats import ks_2samp  # local import to avoid slow startup
+    from sqlalchemy import text
+    from app.models.database import engine
 
-    # Read recent audit data
+    # Read recent audit data using standard SQLAlchemy engine
     try:
-        db_raw = DATABASE_URL.replace("sqlite:///", "")
-        conn = sqlite3.connect(db_raw)
-        c = conn.cursor()
-        c.execute(
-            "SELECT original_decision FROM audit_logs WHERE tenant_id = ? "
-            "ORDER BY timestamp DESC LIMIT 200",
-            (tenant_id,),
-        )
-        rows = c.fetchall()
-        conn.close()
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT original_decision FROM audit_logs WHERE tenant_id = :tenant_id ORDER BY timestamp DESC LIMIT 200"),
+                {"tenant_id": tenant_id}
+            )
+            rows = result.fetchall()
     except Exception as exc:
         return {
             "drift_detected": False,

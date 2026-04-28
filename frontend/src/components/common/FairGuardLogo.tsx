@@ -8,14 +8,7 @@ interface FairGuardLogoProps {
 }
 
 /**
- * FairGuardLogo – compact extraction of the hero face-scan animation.
- *
- * The mark is built from three visual "layers":
- *   1. Corner target brackets  (the scanner framing)
- *   2. Minimalist face outline (head + eyes)
- *   3. Scan cross-hair line    (the horizontal beam across the face)
- *
- * All three are rendered in #CCFF00 (Electric Lime) with a soft green glow.
+ * FairGuardLogo – compact geometric shield motif.
  */
 const FairGuardLogo: React.FC<FairGuardLogoProps> = ({
   size = 32,
@@ -45,66 +38,27 @@ const FairGuardLogo: React.FC<FairGuardLogoProps> = ({
         aria-label="FairGuard logo mark"
       >
         <defs>
-          {/* Subtle radial glow behind face */}
+          {/* Subtle radial glow behind shield */}
           <radialGradient id="fgLogoOrb" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(204,255,0,0.10)" />
+            <stop offset="0%" stopColor="rgba(204,255,0,0.15)" />
             <stop offset="100%" stopColor="transparent" />
           </radialGradient>
-
-          {/* Scan-beam gradient */}
-          <linearGradient id="fgScanGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%"   stopColor="rgba(204,255,0,0)" />
-            <stop offset="40%"  stopColor="rgba(204,255,0,0.45)" />
-            <stop offset="60%"  stopColor="rgba(204,255,0,0.45)" />
-            <stop offset="100%" stopColor="rgba(204,255,0,0)" />
-          </linearGradient>
         </defs>
 
         {/* Orb background */}
         <circle cx="32" cy="32" r="30" fill="url(#fgLogoOrb)" />
 
-        {/* ── Corner target brackets ──────────────────────────── */}
-        <g stroke="#CCFF00" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.95">
-          {/* Top-left */}
-          <line x1="8"  y1="14" x2="8"  y2="24" />
-          <line x1="8"  y1="14" x2="18" y2="14" />
-          {/* Top-right */}
-          <line x1="56" y1="14" x2="56" y2="24" />
-          <line x1="56" y1="14" x2="46" y2="14" />
-          {/* Bottom-left */}
-          <line x1="8"  y1="50" x2="8"  y2="40" />
-          <line x1="8"  y1="50" x2="18" y2="50" />
-          {/* Bottom-right */}
-          <line x1="56" y1="50" x2="56" y2="40" />
-          <line x1="56" y1="50" x2="46" y2="50" />
+        {/* ── Geometric Shield / Guard Motif ──────────────────────────── */}
+        <g stroke="#CCFF00" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none">
+          {/* Outer Shield Hexagon */}
+          <polygon points="32,10 52,20 52,42 32,56 12,42 12,20" opacity="0.9" />
+          {/* Inner geometry - Firewall grid lines */}
+          <line x1="32" y1="10" x2="32" y2="56" opacity="0.6" />
+          <line x1="12" y1="31" x2="52" y2="31" opacity="0.6" />
+          
+          {/* Central data node */}
+          <rect x="26" y="25" width="12" height="12" rx="2" fill="#CCFF00" opacity="0.8" />
         </g>
-
-        {/* ── Face outline ───────────────────────────────────── */}
-        <g fill="none" stroke="#CCFF00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.8">
-          {/* Head */}
-          <ellipse cx="32" cy="30" rx="11" ry="14" />
-          {/* Left eye socket */}
-          <ellipse cx="27" cy="26" rx="2.5" ry="1.6" />
-          {/* Right eye socket */}
-          <ellipse cx="37" cy="26" rx="2.5" ry="1.6" />
-          {/* Nose bridge */}
-          <line x1="32" y1="29" x2="32" y2="33" />
-          {/* Mouth curve */}
-          <path d="M 27 37 Q 32 41 37 37" />
-          {/* Chin/jaw connector */}
-          <path d="M 21 43 Q 21 47 27 50 L 32 52 L 37 50 Q 43 47 43 43" opacity="0.5" />
-        </g>
-
-        {/* ── Horizontal scan cross-hair (the signature element) ─ */}
-        <rect
-          x="16" y="29" width="32" height="4" rx="2"
-          fill="url(#fgScanGrad)"
-          opacity="0.85"
-        />
-
-        {/* Eye dot fills */}
-        <circle cx="27" cy="26" r="1" fill="#CCFF00" opacity="0.6" />
-        <circle cx="37" cy="26" r="1" fill="#CCFF00" opacity="0.6" />
 
         {/* Corner data pips */}
         <circle cx="32" cy="4"  r="1.5" fill="#CCFF00" opacity="0.5" />

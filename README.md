@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logo.png" alt="FairGuard Logo" width="120" />
+<img src="docs/assets/logo.svg" alt="FairGuard Logo" width="120" />
 
 # FairGuard
 
@@ -14,7 +14,7 @@
 [![EU AI Act](https://img.shields.io/badge/EU%20AI%20Act-Art.%2010%2F12%2F13%2F14-blue)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52021PC0206)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[**Live Demo**](http://localhost:5173) · [**API Docs**](http://localhost:8000/docs) · [**Report a Bug**](https://github.com/your-org/fairguard/issues) · [**Request Feature**](https://github.com/your-org/fairguard/issues)
+[**Live Demo**](https://fairguard-frontend-207958058488.us-central1.run.app) · [**API Docs**](https://fairguard-api-207958058488.us-central1.run.app/docs) · [**Report a Bug**](https://github.com/Ritinpaul/fairGaurd/issues) · [**Request Feature**](https://github.com/Ritinpaul/fairGaurd/issues)
 
 </div>
 
