@@ -1,76 +1,76 @@
 import { useNavigate } from 'react-router-dom';
 import './LandingPage.css';
+import FairGuardLogo from './common/FairGuardLogo';
 
-/* ─── Reusable Face Scan Hero SVG (larger version) ──────────────── */
-function HeroFaceScan() {
+/* ─── Hero Dashboard Terminal Preview ───────────────────────────── */
+function HeroDashboard() {
+  const decisions = [
+    { id: 'DEC-8812', outcome: 'APPROVED', dpd: '0.01', status: 'compliant', delay: '0s' },
+    { id: 'DEC-8813', outcome: 'CORRECTED', dpd: '0.09', status: 'corrected', delay: '0.4s' },
+    { id: 'DEC-8814', outcome: 'APPROVED', dpd: '0.02', status: 'compliant', delay: '0.8s' },
+    { id: 'DEC-8815', outcome: 'FLAGGED',  dpd: '0.18', status: 'flagged',   delay: '1.2s' },
+    { id: 'DEC-8816', outcome: 'APPROVED', dpd: '0.03', status: 'compliant', delay: '1.6s' },
+  ];
+
   return (
-    <div className="lp-hero-scan">
-      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="lp-hero-scan-svg">
-        <defs>
-          <linearGradient id="heroScanGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(204,255,0,0)" />
-            <stop offset="50%" stopColor="rgba(204,255,0,0.25)" />
-            <stop offset="100%" stopColor="rgba(204,255,0,0)" />
-          </linearGradient>
-          <radialGradient id="heroOrb" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(204,255,0,0.12)" />
-            <stop offset="100%" stopColor="transparent" />
-          </radialGradient>
-          <filter id="heroGlow">
-            <feGaussianBlur stdDeviation="3" result="b" />
-            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
+    <div className="lp-hero-dashboard">
+      {/* ── Window chrome ──────────────────────────────────── */}
+      <div className="lp-dash-chrome">
+        <span className="lp-dash-dot red" />
+        <span className="lp-dash-dot yellow" />
+        <span className="lp-dash-dot green" />
+        <span className="lp-dash-title">fairguard · live stream</span>
+      </div>
 
-        {/* Background orb */}
-        <circle cx="100" cy="100" r="95" fill="url(#heroOrb)" />
+      {/* ── Logo mark centred ─────────────────────────────── */}
+      <div className="lp-dash-logo-zone">
+        <FairGuardLogo size={72} glowIntensity="high" />
+        <div className="lp-dash-logo-ring" />
+        <div className="lp-dash-logo-ring lp-dash-logo-ring-2" />
+      </div>
 
-        {/* Outer ring markers */}
-        <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(204,255,0,0.15)" strokeWidth="1" strokeDasharray="6 8" className="lp-ring-outer" />
-        <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(204,255,0,0.08)" strokeWidth="0.5" strokeDasharray="3 10" className="lp-ring-inner" />
+      {/* ── Metric row ────────────────────────────────────── */}
+      <div className="lp-dash-metrics">
+        <div className="lp-dash-metric">
+          <span className="lp-dash-metric-val">0.02</span>
+          <span className="lp-dash-metric-label">Avg DPD</span>
+        </div>
+        <div className="lp-dash-metric-sep" />
+        <div className="lp-dash-metric">
+          <span className="lp-dash-metric-val lime">98.4%</span>
+          <span className="lp-dash-metric-label">Compliant</span>
+        </div>
+        <div className="lp-dash-metric-sep" />
+        <div className="lp-dash-metric">
+          <span className="lp-dash-metric-val">&lt;42ms</span>
+          <span className="lp-dash-metric-label">Latency</span>
+        </div>
+      </div>
 
-        {/* Corner target brackets */}
-        <g stroke="#CCFF00" strokeWidth="2.5" strokeLinecap="round" filter="url(#heroGlow)" opacity="0.9">
-          <line x1="25" y1="30" x2="25" y2="45" />
-          <line x1="25" y1="30" x2="40" y2="30" />
-          <line x1="175" y1="30" x2="175" y2="45" />
-          <line x1="175" y1="30" x2="160" y2="30" />
-          <line x1="25" y1="170" x2="25" y2="155" />
-          <line x1="25" y1="170" x2="40" y2="170" />
-          <line x1="175" y1="170" x2="175" y2="155" />
-          <line x1="175" y1="170" x2="160" y2="170" />
-        </g>
+      {/* ── Decision feed ─────────────────────────────────── */}
+      <div className="lp-dash-feed">
+        {decisions.map((d) => (
+          <div
+            key={d.id}
+            className={`lp-dash-row lp-dash-row-${d.status}`}
+            style={{ animationDelay: d.delay }}
+          >
+            <span className="lp-dash-row-id">{d.id}</span>
+            <span className="lp-dash-row-outcome">{d.outcome}</span>
+            <span className="lp-dash-row-dpd">DPD {d.dpd}</span>
+            <span className={`lp-dash-row-dot ${d.status}`} />
+          </div>
+        ))}
+      </div>
 
-        {/* Face outline */}
-        <g fill="none" stroke="rgba(204,255,0,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" filter="url(#heroGlow)">
-          <ellipse cx="100" cy="90" rx="32" ry="40" />
-          <ellipse cx="86" cy="82" rx="7" ry="4.5" />
-          <ellipse cx="114" cy="82" rx="7" ry="4.5" />
-          <circle cx="86" cy="82" r="2" fill="rgba(204,255,0,0.3)" />
-          <circle cx="114" cy="82" r="2" fill="rgba(204,255,0,0.3)" />
-          <line x1="100" y1="88" x2="100" y2="99" />
-          <path d="M 88 108 Q 100 116 112 108" />
-          <path d="M 68 130 Q 68 142 82 150 L 100 155 L 118 150 Q 132 142 132 130" />
-        </g>
+      {/* ── Status bar ────────────────────────────────────── */}
+      <div className="lp-dash-statusbar">
+        <span className="lp-badge-dot green" />
+        <span>LIVE · 2,847 decisions today</span>
+        <span className="lp-dash-statusbar-right">v2.0.0</span>
+      </div>
 
-        {/* Scan beam */}
-        <rect className="lp-scan-beam" x="45" y="75" width="110" height="12" rx="6" fill="url(#heroScanGrad)" />
-
-        {/* Data points */}
-        <g className="lp-data-points">
-          <circle cx="100" cy="18" r="3" fill="#CCFF00" opacity="0.6" />
-          <circle cx="182" cy="100" r="3" fill="#CCFF00" opacity="0.6" />
-          <circle cx="100" cy="182" r="3" fill="#CCFF00" opacity="0.6" />
-          <circle cx="18" cy="100" r="3" fill="#CCFF00" opacity="0.6" />
-        </g>
-
-        {/* Status text */}
-        <text x="100" y="192" textAnchor="middle" fill="#CCFF00" fontSize="8" fontFamily="JetBrains Mono" letterSpacing="3" opacity="0.7">
-          SCANNING
-        </text>
-      </svg>
-
-      {/* Floating data badges around the face */}
+      {/* ── Floating badges (kept from original) ──────────── */}
       <div className="lp-scan-badge lp-scan-badge-1">
         <span className="lp-badge-dot green" />BIAS FREE
       </div>
@@ -127,11 +127,7 @@ export default function LandingPage() {
       <nav className="lp-nav">
         <div className="lp-nav-inner">
           <div className="lp-nav-logo">
-            <div className="lp-nav-logo-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#CCFF00" strokeWidth="2" strokeLinecap="round" width="20" height="20">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
+            <FairGuardLogo size={30} glowIntensity="low" />
             FAIR<span className="lp-nav-logo-accent">GUARD</span>
           </div>
           <div className="lp-nav-links">
@@ -141,8 +137,8 @@ export default function LandingPage() {
             <a href="#stats">Enterprise</a>
           </div>
           <div className="lp-nav-actions">
-            <button className="lp-btn-ghost" onClick={() => navigate('/dashboard')}>Log in</button>
-            <button className="lp-btn-primary" onClick={() => navigate('/dashboard')}>
+            <button className="lp-btn-ghost" onClick={() => navigate('/auth')}>Log in</button>
+            <button className="lp-btn-primary" onClick={() => navigate('/auth')}>
               Try for free <span className="lp-btn-arrow">↗</span>
             </button>
           </div>
@@ -167,7 +163,7 @@ export default function LandingPage() {
               algorithmic bias in real-time before unfair decisions reach your users.
             </p>
             <div className="lp-hero-btns">
-              <button className="lp-btn-primary lp-btn-lg" onClick={() => navigate('/dashboard')}>
+              <button className="lp-btn-primary lp-btn-lg" onClick={() => navigate('/auth')}>
                 Try for free <span className="lp-btn-arrow">↗</span>
               </button>
               <button className="lp-btn-outline lp-btn-lg" onClick={() => {
@@ -177,7 +173,7 @@ export default function LandingPage() {
               </button>
             </div>
           </div>
-          <HeroFaceScan />
+          <HeroDashboard />
         </div>
 
         {/* Stats strip below hero */}
@@ -388,7 +384,7 @@ export default function LandingPage() {
             Deploy FairGuard in minutes. No infrastructure changes needed.
           </p>
           <div className="lp-hero-btns">
-            <button className="lp-btn-primary lp-btn-lg" onClick={() => navigate('/dashboard')}>
+            <button className="lp-btn-primary lp-btn-lg" onClick={() => navigate('/auth')}>
               Open Dashboard <span className="lp-btn-arrow">↗</span>
             </button>
             <button className="lp-btn-outline lp-btn-lg">

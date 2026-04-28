@@ -15,6 +15,9 @@ import sys
 import tempfile
 import pytest
 
+# Add backend directory to sys.path to resolve 'app' module imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
+
 # ---------------------------------------------------------------------------
 # Environment — must happen BEFORE any app import
 # ---------------------------------------------------------------------------

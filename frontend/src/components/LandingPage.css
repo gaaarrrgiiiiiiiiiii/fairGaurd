@@ -340,50 +340,200 @@
   animation: fadeInUp 0.7s ease-out 0.3s both;
 }
 
-/* ─── HERO FACE SCAN ─────────────────────────────────────────── */
-.lp-hero-scan {
+/* ─── HERO DASHBOARD TERMINAL ────────────────────────────────── */
+.lp-hero-dashboard {
   position: relative;
   flex-shrink: 0;
-  width: 400px;
-  height: 400px;
+  width: 420px;
+  background: rgba(10, 12, 18, 0.9);
+  border: 1px solid rgba(204, 255, 0, 0.12);
+  border-radius: 16px;
+  overflow: visible;
   animation: fadeInUp 0.8s ease-out 0.3s both;
+  box-shadow:
+    0 0 0 1px rgba(204, 255, 0, 0.05),
+    0 32px 80px rgba(0, 0, 0, 0.6),
+    0 0 120px rgba(204, 255, 0, 0.04) inset;
 }
 
-.lp-hero-scan-svg {
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 0 50px rgba(204, 255, 0, 0.08));
+/* ── Window chrome bar ─────────────────────────────────────── */
+.lp-dash-chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.75rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 16px 16px 0 0;
 }
 
-.lp-ring-outer {
-  transform-origin: center;
-  animation: rotateScan 14s linear infinite;
+.lp-dash-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.lp-dash-dot.red    { background: #FF5F57; }
+.lp-dash-dot.yellow { background: #FEBC2E; }
+.lp-dash-dot.green  { background: #28C840; }
+
+.lp-dash-title {
+  margin-left: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim, rgba(255,255,255,0.3));
+  letter-spacing: 0.8px;
 }
 
-.lp-ring-inner {
-  transform-origin: center;
-  animation: rotateScan 9s linear infinite reverse;
+/* ── Logo zone ─────────────────────────────────────────────── */
+.lp-dash-logo-zone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0 1.5rem;
 }
 
-.lp-scan-beam {
-  animation: lpScanBeam 3.5s ease-in-out infinite;
+.lp-dash-logo-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(204, 255, 0, 0.1);
+  width: 120px;
+  height: 120px;
+  animation: rotateScan 12s linear infinite;
+  pointer-events: none;
 }
 
-@keyframes lpScanBeam {
-  0%   { transform: translateY(-50px); opacity: 0; }
-  12%  { opacity: 0.85; }
-  88%  { opacity: 0.85; }
-  100% { transform: translateY(60px); opacity: 0; }
+.lp-dash-logo-ring-2 {
+  width: 150px;
+  height: 150px;
+  border-color: rgba(204, 255, 0, 0.06);
+  border-style: dashed;
+  animation-duration: 18s;
+  animation-direction: reverse;
 }
 
-.lp-data-points circle {
-  animation: pulseDot 2.5s ease-in-out infinite;
+/* ── Metrics row ───────────────────────────────────────────── */
+.lp-dash-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0.85rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(204, 255, 0, 0.015);
 }
-.lp-data-points circle:nth-child(2) { animation-delay: 0.6s; }
-.lp-data-points circle:nth-child(3) { animation-delay: 1.2s; }
-.lp-data-points circle:nth-child(4) { animation-delay: 1.8s; }
 
-/* Floating badges around face scan */
+.lp-dash-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.lp-dash-metric-val {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+}
+.lp-dash-metric-val.lime { color: #CCFF00; }
+
+.lp-dash-metric-label {
+  font-size: 0.62rem;
+  color: var(--text-dim, rgba(255,255,255,0.35));
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.lp-dash-metric-sep {
+  width: 1px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Decision feed ─────────────────────────────────────────── */
+.lp-dash-feed {
+  padding: 0.6rem 0;
+}
+
+.lp-dash-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  animation: dashRowIn 0.4s ease-out both;
+  transition: background 0.2s;
+}
+
+.lp-dash-row:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+@keyframes dashRowIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.lp-dash-row-id {
+  color: var(--text-dim, rgba(255,255,255,0.3));
+  flex: 0 0 auto;
+  min-width: 76px;
+}
+
+.lp-dash-row-outcome {
+  flex: 1;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.lp-dash-row-compliant  .lp-dash-row-outcome { color: #CCFF00; }
+.lp-dash-row-corrected  .lp-dash-row-outcome { color: #60A5FA; }
+.lp-dash-row-flagged    .lp-dash-row-outcome { color: #F87171; }
+
+.lp-dash-row-dpd {
+  color: var(--text-muted, rgba(255,255,255,0.45));
+  font-size: 0.68rem;
+  margin-left: auto;
+}
+
+.lp-dash-row-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.lp-dash-row-dot.compliant { background: #CCFF00; box-shadow: 0 0 6px #CCFF00; }
+.lp-dash-row-dot.corrected { background: #60A5FA; box-shadow: 0 0 6px #60A5FA; }
+.lp-dash-row-dot.flagged   { background: #F87171; box-shadow: 0 0 6px #F87171; }
+
+/* ── Status bar ────────────────────────────────────────────── */
+.lp-dash-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted, rgba(255,255,255,0.4));
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.015);
+  border-radius: 0 0 16px 16px;
+}
+
+.lp-dash-statusbar-right {
+  margin-left: auto;
+  color: #CCFF00;
+  opacity: 0.6;
+}
+
+/* ── Floating badges (same as before, positioned around card) ─ */
 .lp-scan-badge {
   position: absolute;
   display: flex;
@@ -402,11 +552,12 @@
   white-space: nowrap;
   animation: floatBadge 5s ease-in-out infinite;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 10;
 }
 
-.lp-scan-badge-1 { top: 14%; right: -8%; animation-delay: 0s; }
-.lp-scan-badge-2 { bottom: 32%; left: -14%; animation-delay: 1.6s; }
-.lp-scan-badge-3 { bottom: 8%; right: 3%; animation-delay: 3.2s; }
+.lp-scan-badge-1 { top: -6%; right: -10%; animation-delay: 0s; }
+.lp-scan-badge-2 { top: 42%; left: -16%; animation-delay: 1.6s; }
+.lp-scan-badge-3 { bottom: -4%; right: 6%; animation-delay: 3.2s; }
 
 @keyframes floatBadge {
   0%, 100% { transform: translateY(0); }

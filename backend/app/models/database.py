@@ -119,6 +119,23 @@ class Webhook(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
 
+class User(Base):
+    """Registered users for FairGuard portal authentication."""
+    __tablename__ = "users"
+
+    id           = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email        = Column(String, nullable=False, unique=True, index=True)
+    name         = Column(String, nullable=False)
+    organization = Column(String, nullable=True)
+    role         = Column(String, nullable=False, default="analyst")  # admin|analyst|developer|manager
+    tenant_id    = Column(String, nullable=False, index=True)
+    # Passwords stored as bcrypt hash — never plaintext
+    password_hash = Column(String, nullable=False)
+    is_active     = Column(Boolean, default=True, nullable=False)
+    created_at    = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    last_login_at = Column(DateTime, nullable=True)
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
